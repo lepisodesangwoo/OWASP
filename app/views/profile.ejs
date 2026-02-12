@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Profile - User <%= user.id %></title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            padding: 20px;
+        }
+        .profile {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 600px;
+        }
+        h1 { color: #ff6b6b; }
+        .field { margin: 10px 0; }
+        .label { color: #888; }
+        .value { color: #4ecdc4; font-weight: bold; }
+        .warning {
+            background: rgba(255,0,0,0.2);
+            border: 1px solid #ff4444;
+            padding: 10px;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="profile">
+        <h1>User Profile (IDOR Vulnerable)</h1>
+
+        <div class="field">
+            <span class="label">ID:</span>
+            <span class="value"><%= user.id %></span>
+        </div>
+
+        <div class="field">
+            <span class="label">Username:</span>
+            <span class="value"><%= user.username %></span>
+        </div>
+
+        <div class="field">
+            <span class="label">Password (plaintext!):</span>
+            <span class="value" style="color: #ff4444;"><%= user.password %></span>
+        </div>
+
+        <div class="field">
+            <span class="label">Email:</span>
+            <span class="value"><%= user.email %></span>
+        </div>
+
+        <div class="field">
+            <span class="label">SSN:</span>
+            <span class="value"><%= user.ssn %></span>
+        </div>
+
+        <div class="field">
+            <span class="label">Credit Card:</span>
+            <span class="value"><%= user.credit_card %></span>
+        </div>
+
+        <div class="field">
+            <span class="label">Role:</span>
+            <span class="value"><%= user.role %></span>
+        </div>
+
+        <div class="warning">
+            ⚠️ VULNERABILITY: IDOR - You can access any user's profile by changing the ID in the URL!
+            <br>Try: <a href="/profile/1">/profile/1</a>, <a href="/profile/2">/profile/2</a>, <a href="/profile/3">/profile/3</a>
+        </div>
+
+        <p><a href="/" style="color: #4ecdc4;">← Back to Home</a></p>
+    </div>
+</body>
+</html>

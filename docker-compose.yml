@@ -1,0 +1,42 @@
+services:
+  web:
+    build: ./app
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://vulnuser:vulnpass@postgres:5432/vulndb
+      - SECRET_KEY=super_secret_key_12345
+      - DEBUG=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - vuln-network
+    labels:
+      - "dokploy.enable=true"
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      - POSTGRES_USER=vulnuser
+      - POSTGRES_PASSWORD=vulnpass
+      - POSTGRES_DB=vulndb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vulnuser -d vulndb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vuln-network
+    labels:
+      - "dokploy.enable=true"
+
+volumes:
+  postgres_data:
+
+networks:
+  vuln-network:
+    driver: bridge
