@@ -1,8 +1,6 @@
 services:
   web:
     build: ./app
-    ports:
-      - "6000:3000"
     environment:
       - DATABASE_URL=postgresql://vulnuser:vulnpass@postgres:5432/vulndb
       - SECRET_KEY=super_secret_key_12345
