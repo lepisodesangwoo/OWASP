@@ -1,0 +1,12 @@
+🎉 FLAG 1 CAPTURED! 🎉
+
+FLAG{w3lc0me_t0_lux0r4_ctf}
+
+This is the first flag - obtained through path traversal or directory enumeration.
+
+Hints for next flags:
+- Flag 2: Hidden in the database (try SQL injection)
+- Flag 3: In /app/secrets/ directory
+- Flag 4: Requires RCE to read /home/mike/flag.txt
+- Flag 5: SSH to another server
+- Flag 6: Root flag - requires privilege escalation

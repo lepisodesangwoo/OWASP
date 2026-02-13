@@ -1,0 +1,13 @@
+🎉 FLAG 2 CAPTURED! 🎉
+
+FLAG{sql_1nj3ct10n_m4st3r}
+
+You found this flag through SQL Injection!
+
+The vulnerable endpoint was /search or /login
+Try: ' UNION SELECT 1,2,3,api_key,5 FROM users--
+
+Next steps:
+- Try to read files from the server using SQL injection
+- Look for SSH keys in /home/*/.ssh/
+- Check /var/backups/ for sensitive data
