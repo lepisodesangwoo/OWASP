@@ -64,6 +64,149 @@ app.get('/', async (req, res) => {
 });
 
 // ==========================================
+// USER AUTHENTICATION (VULNERABLE)
+// ==========================================
+
+// User login page
+app.get('/login', (req, res) => {
+  res.render('login', { title: 'Login - LUXORA', error: null });
+});
+
+// User login handler - VULN: SQL Injection, no rate limiting
+app.post('/login', async (req, res) => {
+  const { username, password } = req.body;
+
+  try {
+    // VULN: SQL Injection in login
+    const query = `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`;
+    const result = await pool.query(query);
+
+    if (result.rows.length > 0) {
+      const user = result.rows[0];
+      // VULN: Session data stored in client-side cookie (insecure)
+      res.cookie('session', JSON.stringify({
+        id: user.id,
+        username: user.username,
+        role: user.role
+      }), { httpOnly: false });
+
+      res.redirect('/account');
+    } else {
+      res.render('login', { title: 'Login - LUXORA', error: 'Invalid credentials' });
+    }
+  } catch (err) {
+    // VULN: Detailed error message exposure
+    res.render('login', { title: 'Login - LUXORA', error: err.message });
+  }
+});
+
+// User registration page
+app.get('/register', (req, res) => {
+  res.render('register', { title: 'Register - LUXORA', error: null });
+});
+
+// User registration handler - VULN: Plaintext passwords, no validation
+app.post('/register', async (req, res) => {
+  const { username, password, email, firstName, lastName } = req.body;
+
+  try {
+    // VULN: Password stored in plaintext
+    const result = await pool.query(
+      'INSERT INTO users (username, password, email, role) VALUES ($1, $2, $3, $4) RETURNING *',
+      [username, password, email, 'user']
+    );
+
+    // VULN: Auto-login after registration (no email verification)
+    res.cookie('session', JSON.stringify({
+      id: result.rows[0].id,
+      username,
+      role: 'user'
+    }), { httpOnly: false });
+
+    res.redirect('/account');
+  } catch (err) {
+    res.render('register', { title: 'Register - LUXORA', error: err.message });
+  }
+});
+
+// User account page - VULN: IDOR via session cookie
+app.get('/account', async (req, res) => {
+  const session = req.cookies.session;
+
+  if (!session) {
+    return res.redirect('/login');
+  }
+
+  try {
+    const user = JSON.parse(session);
+    // VULN: Trusts client-side cookie data without verification
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [user.id]);
+
+    if (result.rows.length > 0) {
+      // Get user orders
+      const orders = [
+        { id: 'ORD-2024-001', date: '2024-01-15', total: 598.00, status: 'Delivered' },
+        { id: 'ORD-2024-002', date: '2024-01-20', total: 249.00, status: 'Shipped' }
+      ];
+      res.render('account', { title: 'My Account - LUXORA', user: result.rows[0], orders });
+    } else {
+      res.redirect('/login');
+    }
+  } catch (err) {
+    res.redirect('/login');
+  }
+});
+
+// Profile page - VULN: IDOR (can view any user's profile)
+app.get('/profile/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // VULN: No authorization check - anyone can view any profile
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+
+    if (result.rows.length > 0) {
+      res.render('profile', { title: 'Profile - LUXORA', user: result.rows[0] });
+    } else {
+      res.status(404).send('User not found');
+    }
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// Change password - VULN: CSRF, weak policy, no current password check
+app.post('/account/password', async (req, res) => {
+  const { newPassword, confirmPassword } = req.body;
+  const session = req.cookies.session;
+
+  if (!session) {
+    return res.redirect('/login');
+  }
+
+  // VULN: No CSRF token validation
+  // VULN: No current password verification
+  // VULN: No password complexity requirements
+  if (newPassword !== confirmPassword) {
+    return res.redirect('/account?error=password_mismatch');
+  }
+
+  try {
+    const user = JSON.parse(session);
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [newPassword, user.id]);
+    res.redirect('/account?success=password_changed');
+  } catch (err) {
+    res.redirect('/account?error=update_failed');
+  }
+});
+
+// Logout
+app.get('/logout', (req, res) => {
+  res.clearCookie('session');
+  res.redirect('/');
+});
+
+// ==========================================
 // PRODUCTS & CATEGORIES
 // ==========================================
 
@@ -161,6 +304,117 @@ app.post('/newsletter', async (req, res) => {
     res.redirect('/?subscribed=true');
   } catch (err) {
     res.redirect('/?subscribed=false');
+  }
+});
+
+// Image proxy - VULN: SSRF via image URL
+app.get('/image', async (req, res) => {
+  const { url } = req.query;
+
+  if (!url) {
+    return res.status(400).send('URL required');
+  }
+
+  try {
+    // VULN: No URL validation - can fetch internal resources
+    const response = await axios.get(url, {
+      responseType: 'arraybuffer',
+      timeout: 10000
+    });
+
+    const contentType = response.headers['content-type'] || 'image/jpeg';
+    res.set('Content-Type', contentType);
+    res.send(response.data);
+  } catch (err) {
+    // VULN: Exposes internal URLs in error
+    res.status(500).json({
+      error: err.message,
+      attempted_url: url,
+      hint: 'SSRF: Try http://localhost:5432 or http://169.254.169.254'
+    });
+  }
+});
+
+// Product image upload - VULN: No file type validation, path traversal
+app.post('/products/:id/image', upload.single('image'), (req, res) => {
+  const { id } = req.params;
+
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  // VULN: No file type validation - can upload any file type including .php, .jsp
+  // VULN: Original filename preserved
+  // VULN: File is executable if server misconfigured
+  res.json({
+    success: true,
+    message: 'Image uploaded',
+    file: {
+      originalName: req.file.originalname,
+      savedAs: req.file.filename,
+      path: `/uploads/${req.file.filename}`,
+      size: req.file.size,
+      mimetype: req.file.mimetype
+    },
+    hint: 'VULN: No file type validation - try uploading a web shell'
+  });
+});
+
+// Wishlist - VULN: Stored XSS in wishlist notes
+app.post('/wishlist', async (req, res) => {
+  const { productId, note } = req.body;
+  const session = req.cookies.session;
+
+  if (!session) {
+    return res.status(401).json({ error: 'Please login' });
+  }
+
+  try {
+    const user = JSON.parse(session);
+    // VULN: Note stored without sanitization - Stored XSS
+    await pool.query(
+      'INSERT INTO comments (author, content) VALUES ($1, $2)',
+      [user.username, `Wishlist note for product ${productId}: ${note}`]
+    );
+    res.json({ success: true, message: 'Added to wishlist' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Order tracking - VULN: IDOR + SQL Injection
+app.get('/track-order', async (req, res) => {
+  const { order_id } = req.query;
+
+  if (!order_id) {
+    return res.render('track-order', { title: 'Track Order - LUXORA', order: null, error: null });
+  }
+
+  try {
+    // VULN: SQL Injection in order lookup
+    // VULN: IDOR - no auth check, anyone can view any order
+    const query = `SELECT * FROM orders WHERE order_id = '${order_id}'`;
+    const result = await pool.query(query);
+
+    if (result.rows.length > 0) {
+      res.render('track-order', { title: 'Track Order - LUXORA', order: result.rows[0], error: null });
+    } else {
+      // Demo order for display
+      const demoOrder = {
+        order_id: order_id,
+        status: 'Shipped',
+        estimated_delivery: '2024-02-15',
+        tracking_number: 'LUX-TRACK-' + Math.random().toString(36).substr(2, 9).toUpperCase()
+      };
+      res.render('track-order', { title: 'Track Order - LUXORA', order: demoOrder, error: null });
+    }
+  } catch (err) {
+    // VULN: Exposes SQL error with query
+    res.render('track-order', {
+      title: 'Track Order - LUXORA',
+      order: null,
+      error: err.message + ' | Query: SELECT * FROM orders WHERE order_id = \'' + order_id + '\''
+    });
   }
 });
 
