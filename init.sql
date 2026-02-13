@@ -49,9 +49,21 @@ INSERT INTO comments (author, content) VALUES
 ('Developer', '<svg onload=alert("SVG XSS")>');
 
 INSERT INTO products (name, price, data) VALUES
-('Laptop', 999.99, '{"category": "electronics", "stock": 50}'),
-('Phone', 599.99, '{"category": "electronics", "stock": 100}'),
-('Tablet', 399.99, '{"category": "electronics", "stock": 75}');
+('Classic Leather Tote', 299.99, '{"category": "Bags", "stock": 50, "badge": "Sale", "original_price": 399.99}'),
+('Minimalist Watch', 189.00, '{"category": "Accessories", "stock": 100, "badge": "New"}'),
+('Cashmere Sweater', 249.00, '{"category": "Clothing", "stock": 75}'),
+('Silk Scarf Collection', 89.00, '{"category": "Accessories", "stock": 200, "badge": null, "original_price": 129.00}'),
+('Premium Sunglasses', 159.00, '{"category": "Accessories", "stock": 60, "badge": "Best Seller"}'),
+('Leather Belt', 79.00, '{"category": "Accessories", "stock": 150}'),
+('Wool Blend Coat', 449.00, '{"category": "Clothing", "stock": 30, "badge": "New"}'),
+('Merino Wool Cardigan', 189.00, '{"category": "Clothing", "stock": 45}'),
+('Italian Leather Wallet', 129.00, '{"category": "Accessories", "stock": 80}'),
+('Cotton Oxford Shirt', 89.00, '{"category": "Clothing", "stock": 120}'),
+('Linen Summer Dress', 179.00, '{"category": "Clothing", "stock": 55, "badge": "Sale", "original_price": 229.00}'),
+('Handcrafted Bracelet', 69.00, '{"category": "Accessories", "stock": 90}'),
+('Travel Duffel Bag', 349.00, '{"category": "Bags", "stock": 25, "badge": "Limited"}'),
+('Cashmere Beanie', 79.00, '{"category": "Accessories", "stock": 100}'),
+('Silk Pocket Square Set', 49.00, '{"category": "Accessories", "stock": 150, "badge": "Best Seller"}');
 
 INSERT INTO secrets (name, value) VALUES
 ('DATABASE_PASSWORD', 'super_secret_db_pass'),

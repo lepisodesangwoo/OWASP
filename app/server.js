@@ -34,10 +34,18 @@ const pool = new Pool({
 });
 
 // ==========================================
-// HOME PAGE
+// HOME PAGE - Shopping Mall
 // ==========================================
 app.get('/', (req, res) => {
-  res.render('index', { title: 'Vulnerable App' });
+  const products = [
+    { id: 1, name: 'Classic Leather Tote', category: 'Bags', price: 299.00, originalPrice: 399.00, badge: 'Sale' },
+    { id: 2, name: 'Minimalist Watch', category: 'Accessories', price: 189.00, badge: 'New' },
+    { id: 3, name: 'Cashmere Sweater', category: 'Clothing', price: 249.00 },
+    { id: 4, name: 'Silk Scarf Collection', category: 'Accessories', price: 89.00, originalPrice: 129.00 },
+    { id: 5, name: 'Premium Sunglasses', category: 'Accessories', price: 159.00, badge: 'Best Seller' },
+    { id: 6, name: 'Leather Belt', category: 'Accessories', price: 79.00 }
+  ];
+  res.render('shop', { products, title: 'LUXORA - Premium Lifestyle Store' });
 });
 
 // ==========================================
@@ -81,18 +89,65 @@ app.get('/profile/:id', async (req, res) => {
   }
 });
 
-// Broken access control - admin area without proper auth
+// Admin Login Page
+app.get('/admin/login', (req, res) => {
+  res.render('admin-login', { error: false });
+});
+
+// Admin Login Handler - VULN: Weak credentials (admin:admin123, root:toor)
+app.post('/admin/login', (req, res) => {
+  const { username, password } = req.body;
+
+  // VULN: Hardcoded weak admin credentials
+  const adminUsers = {
+    'admin': 'admin123',
+    'root': 'toor',
+    'administrator': 'administrator'
+  };
+
+  // VULN: Timing attack possible, no rate limiting
+  if (adminUsers[username] && adminUsers[username] === password) {
+    // VULN: Cookie-based auth, client-controlled
+    res.cookie('auth', JSON.stringify({ username, role: 'admin' }), { httpOnly: false });
+    res.cookie('isAdmin', 'true');
+    return res.redirect('/admin');
+  }
+
+  // VULN: Different error for user exists vs wrong password (enumeration)
+  res.render('admin-login', { error: true });
+});
+
+// Admin Dashboard - VULN: Only checks cookie, easily bypassed
 app.get('/admin', (req, res) => {
-  // VULN: Only checks cookie, easily bypassed
+  // VULN: Client-side cookie can be manipulated
   const auth = req.cookies.auth;
   if (auth) {
-    const user = JSON.parse(auth);
-    // VULN: Trusts client-side cookie data
-    if (user.role === 'admin') {
-      return res.render('admin', { user });
+    try {
+      const user = JSON.parse(auth);
+      // VULN: Trusts client-side cookie data for role
+      if (user.role === 'admin' || req.cookies.isAdmin === 'true') {
+        const recentOrders = [
+          { id: 'ORD-001', customer: 'John Smith', product: 'Leather Tote', amount: 299.00, status: 'completed' },
+          { id: 'ORD-002', customer: 'Sarah Johnson', product: 'Cashmere Sweater', amount: 249.00, status: 'processing' },
+          { id: 'ORD-003', customer: 'Mike Wilson', product: 'Minimalist Watch', amount: 189.00, status: 'pending' },
+          { id: 'ORD-004', customer: 'Emily Davis', product: 'Silk Scarf', amount: 89.00, status: 'completed' },
+          { id: 'ORD-005', customer: 'David Brown', product: 'Premium Sunglasses', amount: 159.00, status: 'processing' }
+        ];
+
+        const activities = [
+          { type: 'order', icon: '📦', title: 'New order #ORD-005 received', time: '5 min ago' },
+          { type: 'user', icon: '👤', title: 'New customer registered', time: '12 min ago' },
+          { type: 'payment', icon: '💳', title: 'Payment confirmed for #ORD-003', time: '28 min ago' },
+          { type: 'alert', icon: '⚠️', title: 'Low stock alert: Leather Belt', time: '1 hour ago' }
+        ];
+
+        return res.render('admin-panel', { user, recentOrders, activities });
+      }
+    } catch (e) {
+      // VULN: Returns detailed error
     }
   }
-  res.status(403).send('Access denied');
+  res.redirect('/admin/login');
 });
 
 // ==========================================
@@ -136,10 +191,100 @@ app.post('/register', async (req, res) => {
 });
 
 // ==========================================
+// CART
+// ==========================================
+app.get('/cart', (req, res) => {
+  // Demo cart items
+  const cartItems = [
+    { id: 1, name: 'Classic Leather Tote', category: 'Bags', price: 299.00, quantity: 1, size: 'M' },
+    { id: 3, name: 'Cashmere Sweater', category: 'Clothing', price: 249.00, quantity: 2, size: 'L' }
+  ];
+
+  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const shipping = subtotal > 100 ? 0 : 9.99;
+  const tax = subtotal * 0.08;
+  const total = subtotal + shipping + tax;
+
+  res.render('cart', { cartItems, subtotal, shipping, tax, total });
+});
+
+// Promo code - VULN: Logic bypass possible
+app.post('/cart/promo', (req, res) => {
+  const { code } = req.body;
+
+  // VULN: Promo codes are predictable and can be brute-forced
+  const validCodes = ['SAVE10', 'WELCOME20', 'VIP30', 'BLACKFRIDAY50', 'admin'];
+
+  if (validCodes.includes(code)) {
+    res.cookie('promoApplied', code);
+    res.redirect('/cart');
+  } else {
+    res.redirect('/cart?error=invalid');
+  }
+});
+
+// ==========================================
 // A03:2021 - INJECTION
 // ==========================================
 
-// SQL Injection - Classic
+// Search Page - VULN: SQL Injection via search query
+app.get('/search', async (req, res) => {
+  const { q } = req.query;
+
+  if (!q) {
+    return res.render('search', { query: '', results: [], error: null, query_shown: null });
+  }
+
+  try {
+    // VULN: Direct string concatenation - SQL Injection
+    const query = `SELECT id, name, price, category, data->>'badge' as badge FROM products WHERE name LIKE '%${q}%' OR category LIKE '%${q}%'`;
+    const result = await pool.query(query);
+    res.render('search', { query: q, results: result.rows, error: null, query_shown: query });
+  } catch (err) {
+    // VULN: Detailed error exposure showing the query
+    res.render('search', { query: q, results: [], error: err.message, query_shown: `SELECT ... WHERE name LIKE '%${q}%'...` });
+  }
+});
+
+// Product Detail Page - VULN: IDOR via product ID
+app.get('/products/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // VULN: No parameterized query (SQL Injection possible via ID)
+    const query = `SELECT * FROM products WHERE id = ${id}`;
+    const result = await pool.query(query);
+
+    if (result.rows.length > 0) {
+      // Get reviews - VULN: Stored XSS will be rendered
+      const reviewsResult = await pool.query('SELECT * FROM comments ORDER BY created_at DESC LIMIT 10');
+      res.render('product', { product: result.rows[0], reviews: reviewsResult.rows });
+    } else {
+      res.status(404).send('Product not found');
+    }
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// Product Reviews - VULN: Stored XSS
+app.post('/products/:id/reviews', async (req, res) => {
+  const { id } = req.params;
+  const { author, content } = req.body;
+
+  try {
+    // VULN: No input sanitization - Stored XSS
+    await pool.query(
+      'INSERT INTO comments (author, content) VALUES ($1, $2)',
+      [author, content]
+    );
+    res.redirect(`/products/${id}`);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// SQL Injection - Classic (hidden API endpoint)
 app.get('/users', async (req, res) => {
   const { name } = req.query;
 
