@@ -281,6 +281,56 @@
             text-decoration: line-through;
         }
 
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 60px;
+            padding-top: 40px;
+            border-top: 1px solid var(--border);
+        }
+
+        .pagination a, .pagination span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+            height: 44px;
+            padding: 0 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: var(--fg);
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .pagination a:hover {
+            background: var(--fg);
+            color: white;
+            border-color: var(--fg);
+        }
+
+        .pagination .active {
+            background: var(--fg);
+            color: white;
+            border-color: var(--fg);
+        }
+
+        .pagination .disabled {
+            color: var(--muted);
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .pagination-info {
+            margin-top: 16px;
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
         footer {
             background: var(--fg);
             color: white;
@@ -425,6 +475,35 @@
             </a>
             <% }); %>
         </div>
+
+        <% if (pagination && pagination.totalPages > 1) { %>
+        <div class="pagination">
+            <% if (pagination.hasPrev) { %>
+            <a href="?page=<%= pagination.page - 1 %>">← Prev</a>
+            <% } else { %>
+            <span class="disabled">← Prev</span>
+            <% } %>
+
+            <% for (let i = 1; i <= pagination.totalPages; i++) { %>
+                <% if (i === pagination.page) { %>
+                <span class="active"><%= i %></span>
+                <% } else if (i === 1 || i === pagination.totalPages || (i >= pagination.page - 2 && i <= pagination.page + 2)) { %>
+                <a href="?page=<%= i %>"><%= i %></a>
+                <% } else if (i === pagination.page - 3 || i === pagination.page + 3) { %>
+                <span>...</span>
+                <% } %>
+            <% } %>
+
+            <% if (pagination.hasNext) { %>
+            <a href="?page=<%= pagination.page + 1 %>">Next →</a>
+            <% } else { %>
+            <span class="disabled">Next →</span>
+            <% } %>
+        </div>
+        <div class="pagination-info">
+            Page <%= pagination.page %> of <%= pagination.totalPages %> (<%= pagination.totalProducts %> products)
+        </div>
+        <% } %>
     </main>
 
     <footer>

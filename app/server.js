@@ -38,15 +38,15 @@ const pool = new Pool({
 // ==========================================
 app.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, name, price, image_url, data FROM products LIMIT 6');
+    const result = await pool.query('SELECT id, name, price, image_url, category, badge, original_price FROM products LIMIT 8');
     const products = result.rows.map(p => ({
       id: p.id,
       name: p.name,
       price: parseFloat(p.price),
       image_url: p.image_url,
-      category: p.data?.category || 'General',
-      badge: p.data?.badge,
-      originalPrice: p.data?.original_price
+      category: p.category || 'General',
+      badge: p.badge,
+      originalPrice: p.original_price ? parseFloat(p.original_price) : null
     }));
     res.render('shop', { products, title: 'LUXORA - Premium Lifestyle Store' });
   } catch (err) {
@@ -57,7 +57,9 @@ app.get('/', async (req, res) => {
       { id: 3, name: 'Cashmere Sweater', category: 'Clothing', price: 249.00, image_url: 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=800' },
       { id: 4, name: 'Silk Scarf Collection', category: 'Accessories', price: 89.00, originalPrice: 129.00, image_url: 'https://images.unsplash.com/photo-1601924994987-69e26d50dc26?w=800' },
       { id: 5, name: 'Premium Sunglasses', category: 'Accessories', price: 159.00, badge: 'Best Seller', image_url: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=800' },
-      { id: 6, name: 'Leather Belt', category: 'Accessories', price: 79.00, image_url: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800' }
+      { id: 6, name: 'Leather Belt', category: 'Accessories', price: 79.00, image_url: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800' },
+      { id: 7, name: 'Leather Loafers', category: 'Shoes', price: 199.00, image_url: 'https://images.unsplash.com/photo-1614252369475-531eba835eb1?w=800' },
+      { id: 8, name: 'Wool Blend Coat', category: 'Clothing', price: 449.00, badge: 'New', image_url: 'https://images.unsplash.com/photo-1539533018447-63fcce2678e3?w=800' }
     ];
     res.render('shop', { products, title: 'LUXORA - Premium Lifestyle Store' });
   }
@@ -341,43 +343,94 @@ app.get('/logout', (req, res) => {
 // PRODUCTS & CATEGORIES
 // ==========================================
 
-// All Products Page
+// All Products Page with Pagination
 app.get('/products', async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = 12;
+  const offset = (page - 1) * limit;
+
   try {
-    const result = await pool.query('SELECT id, name, price, image_url, data FROM products ORDER BY id');
+    // Get total count
+    const countResult = await pool.query('SELECT COUNT(*) FROM products');
+    const totalProducts = parseInt(countResult.rows[0].count);
+    const totalPages = Math.ceil(totalProducts / limit);
+
+    // Get paginated products
+    const result = await pool.query(
+      'SELECT id, name, price, image_url, category, badge, original_price, description FROM products ORDER BY id LIMIT $1 OFFSET $2',
+      [limit, offset]
+    );
+
     const products = result.rows.map(p => ({
       id: p.id,
       name: p.name,
       price: parseFloat(p.price),
       image_url: p.image_url,
-      category: p.data?.category || 'General',
-      badge: p.data?.badge,
-      originalPrice: p.data?.original_price
+      category: p.category || 'General',
+      badge: p.badge,
+      originalPrice: p.original_price ? parseFloat(p.original_price) : null,
+      description: p.description
     }));
-    res.render('products', { products, title: 'All Products - LUXORA', category: 'All' });
+
+    res.render('products', {
+      products,
+      title: 'All Products - LUXORA',
+      category: 'All',
+      pagination: {
+        page,
+        totalPages,
+        totalProducts,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      }
+    });
   } catch (err) {
     res.status(500).send(err.message);
   }
 });
 
-// Category Page
+// Category Page with Pagination
 app.get('/category/:name', async (req, res) => {
   const { name } = req.params;
+  const page = parseInt(req.query.page) || 1;
+  const limit = 12;
+  const offset = (page - 1) * limit;
+
   try {
-    const result = await pool.query(
-      `SELECT id, name, price, image_url, data FROM products WHERE data->>'category' ILIKE $1`,
+    // Get total count for category
+    const countResult = await pool.query(
+      'SELECT COUNT(*) FROM products WHERE category ILIKE $1',
       [`%${name}%`]
+    );
+    const totalProducts = parseInt(countResult.rows[0].count);
+    const totalPages = Math.ceil(totalProducts / limit);
+
+    const result = await pool.query(
+      'SELECT id, name, price, image_url, category, badge, original_price, description FROM products WHERE category ILIKE $1 LIMIT $2 OFFSET $3',
+      [`%${name}%`, limit, offset]
     );
     const products = result.rows.map(p => ({
       id: p.id,
       name: p.name,
       price: parseFloat(p.price),
       image_url: p.image_url,
-      category: p.data?.category || 'General',
-      badge: p.data?.badge,
-      originalPrice: p.data?.original_price
+      category: p.category || 'General',
+      badge: p.badge,
+      originalPrice: p.original_price ? parseFloat(p.original_price) : null,
+      description: p.description
     }));
-    res.render('products', { products, title: `${name} - LUXORA`, category: name });
+    res.render('products', {
+      products,
+      title: `${name} - LUXORA`,
+      category: name,
+      pagination: {
+        page,
+        totalPages,
+        totalProducts,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      }
+    });
   } catch (err) {
     res.status(500).send(err.message);
   }
@@ -385,20 +438,38 @@ app.get('/category/:name', async (req, res) => {
 
 // New Arrivals
 app.get('/new-arrivals', async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = 12;
+  const offset = (page - 1) * limit;
+
   try {
+    const countResult = await pool.query(
+      'SELECT COUNT(*) FROM products WHERE badge = $1',
+      ['New']
+    );
+    const totalProducts = parseInt(countResult.rows[0].count);
+    const totalPages = Math.ceil(totalProducts / limit);
+
     const result = await pool.query(
-      `SELECT id, name, price, image_url, data FROM products WHERE data->>'badge' = 'New' OR data->>'badge' IS NOT NULL ORDER BY id DESC LIMIT 12`
+      'SELECT id, name, price, image_url, category, badge, original_price, description FROM products WHERE badge = $1 ORDER BY id DESC LIMIT $2 OFFSET $3',
+      ['New', limit, offset]
     );
     const products = result.rows.map(p => ({
       id: p.id,
       name: p.name,
       price: parseFloat(p.price),
       image_url: p.image_url,
-      category: p.data?.category || 'General',
-      badge: p.data?.badge,
-      originalPrice: p.data?.original_price
+      category: p.category || 'General',
+      badge: p.badge,
+      originalPrice: p.original_price ? parseFloat(p.original_price) : null,
+      description: p.description
     }));
-    res.render('products', { products, title: 'New Arrivals - LUXORA', category: 'New Arrivals' });
+    res.render('products', {
+      products,
+      title: 'New Arrivals - LUXORA',
+      category: 'New Arrivals',
+      pagination: { page, totalPages, totalProducts, hasNext: page < totalPages, hasPrev: page > 1 }
+    });
   } catch (err) {
     res.status(500).send(err.message);
   }
@@ -406,20 +477,38 @@ app.get('/new-arrivals', async (req, res) => {
 
 // Sale Items
 app.get('/sale', async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = 12;
+  const offset = (page - 1) * limit;
+
   try {
+    const countResult = await pool.query(
+      'SELECT COUNT(*) FROM products WHERE badge = $1 OR original_price IS NOT NULL',
+      ['Sale']
+    );
+    const totalProducts = parseInt(countResult.rows[0].count);
+    const totalPages = Math.ceil(totalProducts / limit);
+
     const result = await pool.query(
-      `SELECT id, name, price, image_url, data FROM products WHERE data->>'badge' = 'Sale' OR data->>'original_price' IS NOT NULL`
+      'SELECT id, name, price, image_url, category, badge, original_price, description FROM products WHERE badge = $1 OR original_price IS NOT NULL LIMIT $2 OFFSET $3',
+      ['Sale', limit, offset]
     );
     const products = result.rows.map(p => ({
       id: p.id,
       name: p.name,
       price: parseFloat(p.price),
       image_url: p.image_url,
-      category: p.data?.category || 'General',
-      badge: p.data?.badge,
-      originalPrice: p.data?.original_price
+      category: p.category || 'General',
+      badge: p.badge,
+      originalPrice: p.original_price ? parseFloat(p.original_price) : null,
+      description: p.description
     }));
-    res.render('products', { products, title: 'Sale - LUXORA', category: 'Sale' });
+    res.render('products', {
+      products,
+      title: 'Sale - LUXORA',
+      category: 'Sale',
+      pagination: { page, totalPages, totalProducts, hasNext: page < totalPages, hasPrev: page > 1 }
+    });
   } catch (err) {
     res.status(500).send(err.message);
   }
