@@ -64,6 +64,152 @@ app.get('/', async (req, res) => {
 });
 
 // ==========================================
+// PRODUCTS & CATEGORIES
+// ==========================================
+
+// All Products Page
+app.get('/products', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, name, price, image_url, data FROM products ORDER BY id');
+    const products = result.rows.map(p => ({
+      id: p.id,
+      name: p.name,
+      price: parseFloat(p.price),
+      image_url: p.image_url,
+      category: p.data?.category || 'General',
+      badge: p.data?.badge,
+      originalPrice: p.data?.original_price
+    }));
+    res.render('products', { products, title: 'All Products - LUXORA', category: 'All' });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// Category Page
+app.get('/category/:name', async (req, res) => {
+  const { name } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT id, name, price, image_url, data FROM products WHERE data->>'category' ILIKE $1`,
+      [`%${name}%`]
+    );
+    const products = result.rows.map(p => ({
+      id: p.id,
+      name: p.name,
+      price: parseFloat(p.price),
+      image_url: p.image_url,
+      category: p.data?.category || 'General',
+      badge: p.data?.badge,
+      originalPrice: p.data?.original_price
+    }));
+    res.render('products', { products, title: `${name} - LUXORA`, category: name });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// New Arrivals
+app.get('/new-arrivals', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, name, price, image_url, data FROM products WHERE data->>'badge' = 'New' OR data->>'badge' IS NOT NULL ORDER BY id DESC LIMIT 12`
+    );
+    const products = result.rows.map(p => ({
+      id: p.id,
+      name: p.name,
+      price: parseFloat(p.price),
+      image_url: p.image_url,
+      category: p.data?.category || 'General',
+      badge: p.data?.badge,
+      originalPrice: p.data?.original_price
+    }));
+    res.render('products', { products, title: 'New Arrivals - LUXORA', category: 'New Arrivals' });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// Sale Items
+app.get('/sale', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, name, price, image_url, data FROM products WHERE data->>'badge' = 'Sale' OR data->>'original_price' IS NOT NULL`
+    );
+    const products = result.rows.map(p => ({
+      id: p.id,
+      name: p.name,
+      price: parseFloat(p.price),
+      image_url: p.image_url,
+      category: p.data?.category || 'General',
+      badge: p.data?.badge,
+      originalPrice: p.data?.original_price
+    }));
+    res.render('products', { products, title: 'Sale - LUXORA', category: 'Sale' });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// Newsletter subscription - VULN: No validation, stores emails
+app.post('/newsletter', async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    // VULN: Email stored without validation
+    await pool.query('INSERT INTO comments (author, content) VALUES ($1, $2)', ['Newsletter', email]);
+    res.redirect('/?subscribed=true');
+  } catch (err) {
+    res.redirect('/?subscribed=false');
+  }
+});
+
+// Checkout page
+app.get('/checkout', (req, res) => {
+  res.render('checkout', { title: 'Checkout - LUXORA' });
+});
+
+app.post('/checkout', (req, res) => {
+  // VULN: Credit card data logged
+  const { cardNumber, expiry, cvv, name } = req.body;
+  console.log('Payment received:', { cardNumber, expiry, cvv, name });
+
+  res.redirect('/checkout/success');
+});
+
+app.get('/checkout/success', (req, res) => {
+  res.render('checkout-success', { title: 'Order Confirmed - LUXORA' });
+});
+
+// About Page
+app.get('/about', (req, res) => {
+  res.render('about', { title: 'About Us - LUXORA' });
+});
+
+// Contact Page
+app.get('/contact', (req, res) => {
+  const sent = req.query.sent || null;
+  res.render('contact', { title: 'Contact Us - LUXORA', sent });
+});
+
+app.post('/contact', async (req, res) => {
+  const { name, email, message } = req.body;
+
+  // VULN: User input logged without sanitization
+  console.log('Contact form:', { name, email, message });
+
+  try {
+    await pool.query(
+      'INSERT INTO comments (author, content) VALUES ($1, $2)',
+      [name, `Contact from ${email}: ${message}`]
+    );
+    res.redirect('/contact?sent=true');
+  } catch (err) {
+    res.redirect('/contact?sent=false');
+  }
+});
+
+// ==========================================
 // A01:2021 - BROKEN ACCESS CONTROL
 // ==========================================
 const users = {

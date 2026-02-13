@@ -56,21 +56,37 @@ INSERT INTO comments (author, content) VALUES
 ('Developer', '<svg onload=alert("SVG XSS")>');
 
 INSERT INTO products (name, price, image_url, data) VALUES
+-- Bags
 ('Classic Leather Tote', 299.99, 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800', '{"category": "Bags", "stock": 50, "badge": "Sale", "original_price": 399.99, "description": "Handcrafted Italian leather tote with gold hardware"}'),
-('Minimalist Watch', 189.00, 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800', '{"category": "Accessories", "stock": 100, "badge": "New", "description": "Swiss movement, sapphire crystal, water resistant"}'),
+('Travel Duffel Bag', 349.00, 'https://images.unsplash.com/photo-1553062407-98eeb64c6a45?w=800', '{"category": "Bags", "stock": 25, "badge": "Limited", "description": "Canvas and leather, brass hardware"}'),
+('Crossbody Bag', 199.00, 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800', '{"category": "Bags", "stock": 40, "badge": "New", "description": "Compact leather crossbody with adjustable strap"}'),
+('Backpack Pro', 279.00, 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800', '{"category": "Bags", "stock": 35, "description": "Water-resistant canvas, laptop compartment"}'),
+('Evening Clutch', 149.00, 'https://images.unsplash.com/photo-1566150905458-1bf1fc113f0d?w=800', '{"category": "Bags", "stock": 60, "badge": "Best Seller", "description": "Elegant satin clutch with detachable chain"}'),
+-- Clothing
 ('Cashmere Sweater', 249.00, 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=800', '{"category": "Clothing", "stock": 75, "description": "100% Mongolian cashmere, ethically sourced"}'),
+('Wool Blend Coat', 449.00, 'https://images.unsplash.com/photo-1539533018447-63fcce2678e3?w=800', '{"category": "Clothing", "stock": 30, "badge": "New", "description": "Italian wool blend, satin lined"}'),
+('Merino Wool Cardigan', 189.00, 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800', '{"category": "Clothing", "stock": 45, "description": "New Zealand merino, button front"}'),
+('Cotton Oxford Shirt', 89.00, 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800', '{"category": "Clothing", "stock": 120, "description": "Egyptian cotton, mother of pearl buttons"}'),
+('Linen Summer Dress', 179.00, 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800', '{"category": "Clothing", "stock": 55, "badge": "Sale", "original_price": 229.00, "description": "French linen, relaxed fit"}'),
+('Silk Blouse', 159.00, 'https://images.unsplash.com/photo-1564257631407-4deb1f99d992?w=800', '{"category": "Clothing", "stock": 65, "badge": "New", "description": "100% silk, elegant drape"}'),
+('Tailored Blazer', 329.00, 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800', '{"category": "Clothing", "stock": 40, "description": "Italian wool, slim fit"}'),
+('Slim Fit Chinos', 119.00, 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800', '{"category": "Clothing", "stock": 100, "badge": "Best Seller", "description": "Stretch cotton, modern fit"}'),
+('Cashmere Turtleneck', 219.00, 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=800', '{"category": "Clothing", "stock": 50, "description": "100% cashmere, ribbed trim"}'),
+('Pleated Midi Skirt', 139.00, 'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=800', '{"category": "Clothing", "stock": 45, "badge": "New", "description": "Satin finish, elastic waist"}'),
+-- Accessories
+('Minimalist Watch', 189.00, 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800', '{"category": "Accessories", "stock": 100, "badge": "New", "description": "Swiss movement, sapphire crystal, water resistant"}'),
 ('Silk Scarf Collection', 89.00, 'https://images.unsplash.com/photo-1601924994987-69e26d50dc26?w=800', '{"category": "Accessories", "stock": 200, "badge": null, "original_price": 129.00, "description": "Hand-rolled edges, 100% mulberry silk"}'),
 ('Premium Sunglasses', 159.00, 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=800', '{"category": "Accessories", "stock": 60, "badge": "Best Seller", "description": "UV400 protection, titanium frame"}'),
 ('Leather Belt', 79.00, 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800', '{"category": "Accessories", "stock": 150, "description": "Full grain leather, solid brass buckle"}'),
-('Wool Blend Coat', 449.00, 'https://images.unsplash.com/photo-1539533018447-63fcce2678e3?w=800', '{"category": "Clothing", "stock": 30, "badge": "New", "description": "Italian wool blend, satin lined"}'),
-('Merino Wool Cardigan', 189.00, 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800', '{"category": "Clothing", "stock": 45, "description": "New Zealand merino, button front"}'),
 ('Italian Leather Wallet', 129.00, 'https://images.unsplash.com/photo-1627123424574-724758594e93?w=800', '{"category": "Accessories", "stock": 80, "description": "RFID blocking, vegetable tanned leather"}'),
-('Cotton Oxford Shirt', 89.00, 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800', '{"category": "Clothing", "stock": 120, "description": "Egyptian cotton, mother of pearl buttons"}'),
-('Linen Summer Dress', 179.00, 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800', '{"category": "Clothing", "stock": 55, "badge": "Sale", "original_price": 229.00, "description": "French linen, relaxed fit"}'),
 ('Handcrafted Bracelet', 69.00, 'https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=800', '{"category": "Accessories", "stock": 90, "description": "Sterling silver, artisan made"}'),
-('Travel Duffel Bag', 349.00, 'https://images.unsplash.com/photo-1553062407-98eeb64c6a45?w=800', '{"category": "Bags", "stock": 25, "badge": "Limited", "description": "Canvas and leather, brass hardware"}'),
 ('Cashmere Beanie', 79.00, 'https://images.unsplash.com/photo-1576871337632-b9aef4c17ab9?w=800', '{"category": "Accessories", "stock": 100, "description": "100% cashmere, ribbed knit"}'),
-('Silk Pocket Square Set', 49.00, 'https://images.unsplash.com/photo-1598560917505-59a3ad559071?w=800', '{"category": "Accessories", "stock": 150, "badge": "Best Seller", "description": "Set of 3, hand-rolled edges"}');
+('Silk Pocket Square Set', 49.00, 'https://images.unsplash.com/photo-1598560917505-59a3ad559071?w=800', '{"category": "Accessories", "stock": 150, "badge": "Best Seller", "description": "Set of 3, hand-rolled edges"}'),
+('Leather Gloves', 99.00, 'https://images.unsplash.com/photo-1531163804464-0a1a81e4ed03?w=800', '{"category": "Accessories", "stock": 70, "badge": "New", "description": "Cashmere lined, lambskin leather"}'),
+('Designer Cufflinks', 79.00, 'https://images.unsplash.com/photo-1596944924616-7b38e7cfac36?w=800', '{"category": "Accessories", "stock": 80, "description": "Sterling silver, elegant design"}'),
+('Statement Necklace', 129.00, 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800', '{"category": "Accessories", "stock": 40, "badge": "Limited", "description": "Gold-plated, handcrafted"}'),
+('Silk Tie Collection', 89.00, 'https://images.unsplash.com/photo-1589756823695-278bc923f962?w=800', '{"category": "Accessories", "stock": 60, "description": "100% silk, classic patterns"}'),
+('Luxury Perfume', 159.00, 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=800', '{"category": "Accessories", "stock": 50, "badge": "New", "description": "Eau de parfum, 100ml"}');
 
 INSERT INTO secrets (name, value) VALUES
 ('DATABASE_PASSWORD', 'super_secret_db_pass'),
