@@ -36,16 +36,31 @@ const pool = new Pool({
 // ==========================================
 // HOME PAGE - Shopping Mall
 // ==========================================
-app.get('/', (req, res) => {
-  const products = [
-    { id: 1, name: 'Classic Leather Tote', category: 'Bags', price: 299.00, originalPrice: 399.00, badge: 'Sale' },
-    { id: 2, name: 'Minimalist Watch', category: 'Accessories', price: 189.00, badge: 'New' },
-    { id: 3, name: 'Cashmere Sweater', category: 'Clothing', price: 249.00 },
-    { id: 4, name: 'Silk Scarf Collection', category: 'Accessories', price: 89.00, originalPrice: 129.00 },
-    { id: 5, name: 'Premium Sunglasses', category: 'Accessories', price: 159.00, badge: 'Best Seller' },
-    { id: 6, name: 'Leather Belt', category: 'Accessories', price: 79.00 }
-  ];
-  res.render('shop', { products, title: 'LUXORA - Premium Lifestyle Store' });
+app.get('/', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, name, price, image_url, data FROM products LIMIT 6');
+    const products = result.rows.map(p => ({
+      id: p.id,
+      name: p.name,
+      price: parseFloat(p.price),
+      image_url: p.image_url,
+      category: p.data?.category || 'General',
+      badge: p.data?.badge,
+      originalPrice: p.data?.original_price
+    }));
+    res.render('shop', { products, title: 'LUXORA - Premium Lifestyle Store' });
+  } catch (err) {
+    // Fallback to static products if DB fails
+    const products = [
+      { id: 1, name: 'Classic Leather Tote', category: 'Bags', price: 299.00, originalPrice: 399.00, badge: 'Sale', image_url: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800' },
+      { id: 2, name: 'Minimalist Watch', category: 'Accessories', price: 189.00, badge: 'New', image_url: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800' },
+      { id: 3, name: 'Cashmere Sweater', category: 'Clothing', price: 249.00, image_url: 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=800' },
+      { id: 4, name: 'Silk Scarf Collection', category: 'Accessories', price: 89.00, originalPrice: 129.00, image_url: 'https://images.unsplash.com/photo-1601924994987-69e26d50dc26?w=800' },
+      { id: 5, name: 'Premium Sunglasses', category: 'Accessories', price: 159.00, badge: 'Best Seller', image_url: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=800' },
+      { id: 6, name: 'Leather Belt', category: 'Accessories', price: 79.00, image_url: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800' }
+    ];
+    res.render('shop', { products, title: 'LUXORA - Premium Lifestyle Store' });
+  }
 });
 
 // ==========================================
@@ -237,7 +252,7 @@ app.get('/search', async (req, res) => {
 
   try {
     // VULN: Direct string concatenation - SQL Injection
-    const query = `SELECT id, name, price, category, data->>'badge' as badge FROM products WHERE name LIKE '%${q}%' OR category LIKE '%${q}%'`;
+    const query = `SELECT id, name, price, image_url, data->>'badge' as badge, data->>'category' as category FROM products WHERE name LIKE '%${q}%' OR data->>'category' LIKE '%${q}%'`;
     const result = await pool.query(query);
     res.render('search', { query: q, results: result.rows, error: null, query_shown: query });
   } catch (err) {
@@ -873,7 +888,7 @@ app.post('/xml', (req, res) => {
 app.get('/read-file', (req, res) => {
   const { file } = req.query;
 
-  // VULN: Path traversal
+  // VULN: Path traversal - no sanitization
   const filepath = path.join(__dirname, 'public', file);
 
   fs.readFile(filepath, 'utf8', (err, data) => {
@@ -885,6 +900,69 @@ app.get('/read-file', (req, res) => {
     }
     res.send(data);
   });
+});
+
+// File download endpoint - VULN: Path traversal to read flags
+app.get('/download', (req, res) => {
+  const { file } = req.query;
+
+  if (!file) {
+    return res.status(400).json({ error: 'File parameter required' });
+  }
+
+  // VULN: No path validation - can access any file on the system
+  const filepath = path.join(__dirname, 'downloads', file);
+
+  // VULN: Even if file doesn't exist in downloads, we try the raw path
+  fs.readFile(filepath, 'utf8', (err, data) => {
+    if (err) {
+      // VULN: Also try reading the file directly (double vulnerability)
+      fs.readFile(file, 'utf8', (err2, data2) => {
+        if (err2) {
+          return res.status(404).json({
+            error: 'File not found',
+            hint: 'Try: ../flags/flag.txt or ../secrets/api_keys.txt',
+            attempted_paths: [filepath, file]
+          });
+        }
+        res.send(data2);
+      });
+      return;
+    }
+    res.send(data);
+  });
+});
+
+// Static files endpoint - VULN: Directory listing + path traversal
+app.get('/files', (req, res) => {
+  const dir = req.query.dir || path.join(__dirname, 'public');
+
+  try {
+    // VULN: No directory restriction
+    const files = fs.readdirSync(dir);
+    const fileList = files.map(f => {
+      const fullPath = path.join(dir, f);
+      try {
+        const stats = fs.statSync(fullPath);
+        return {
+          name: f,
+          path: fullPath,
+          isDirectory: stats.isDirectory(),
+          size: stats.size
+        };
+      } catch {
+        return { name: f, path: fullPath, error: 'Cannot read' };
+      }
+    });
+
+    res.json({
+      directory: dir,
+      files: fileList,
+      hint: 'Try: ?dir=../flags or ?dir=../secrets or ?dir=/etc'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ==========================================

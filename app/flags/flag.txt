@@ -1,0 +1,13 @@
+🎉 CONGRATULATIONS! 🎉
+
+FLAG{pr1v1l3g3_3sc4l4t10n_succ3ss}
+
+You have successfully escalated privileges to access this file!
+
+This flag was obtained by:
+1. Finding the admin login page at /admin/login
+2. Using weak credentials or SQL injection to login
+3. Exploiting broken access control (cookie manipulation)
+4. Accessing sensitive files on the server
+
+Well done, security researcher!

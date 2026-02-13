@@ -1,0 +1,13 @@
+🔐 ROOT FLAG 🔐
+
+FLAG{r00t_4cc3ss_4ch13v3d}
+
+You've reached the highest privilege level!
+
+Hints for other flags:
+- Check /secrets/database.txt for database credentials
+- Check /secrets/api_keys.txt for API secrets
+- Look for hidden users in the database
+- Try path traversal to read server files
+
+Good luck with the rest of the CTF!
