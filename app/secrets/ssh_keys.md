@@ -9,4 +9,4 @@ bm9vRLJE0s8KR7dFj7dP7kZHs8fYdKx8n3kPmQ==
 # Password: mike2024!
 # Can SSH to: ssh mike@10.10.10.50 -i mike_key.pem
 
-🚩 FLAG{ssh_k3y_l34k3d_v1a_w3b}
+🚩 

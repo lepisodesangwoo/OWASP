@@ -1,16 +1,23 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <title>Internal Wiki - LUXORA</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: #f6f8fa;
             color: #24292f;
             padding: 0;
         }
+
         .header {
             background: #24292f;
             color: white;
@@ -19,13 +26,18 @@
             justify-content: space-between;
             align-items: center;
         }
-        .header h1 { font-size: 1.2rem; }
+
+        .header h1 {
+            font-size: 1.2rem;
+        }
+
         .header-badge {
             background: #f85149;
             padding: 4px 8px;
             border-radius: 4px;
             font-size: 0.75rem;
         }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
@@ -34,44 +46,53 @@
             grid-template-columns: 250px 1fr;
             gap: 24px;
         }
+
         .sidebar {
             background: white;
             border-radius: 8px;
             padding: 16px;
             border: 1px solid #d0d7de;
         }
+
         .sidebar h3 {
             font-size: 0.85rem;
             text-transform: uppercase;
             color: #57606a;
             margin-bottom: 12px;
         }
+
         .sidebar ul {
             list-style: none;
         }
+
         .sidebar li {
             padding: 8px 12px;
             border-radius: 4px;
             cursor: pointer;
         }
+
         .sidebar li:hover {
             background: #f6f8fa;
         }
+
         .sidebar li.active {
             background: #ddf4ff;
             color: #0969da;
         }
+
         .content {
             background: white;
             border-radius: 8px;
             border: 1px solid #d0d7de;
             padding: 24px;
         }
+
         .content h2 {
             padding-bottom: 16px;
             border-bottom: 1px solid #d0d7de;
             margin-bottom: 20px;
         }
+
         .note {
             background: #f6f8fa;
             border: 1px solid #d0d7de;
@@ -80,15 +101,18 @@
             margin: 16px 0;
             border-radius: 0 8px 8px 0;
         }
+
         .note.alert {
             border-left-color: #f85149;
             background: #fff8e6;
         }
+
         .note-header {
             font-size: 0.85rem;
             color: #57606a;
             margin-bottom: 8px;
         }
+
         .tag {
             display: inline-block;
             background: #ddf4ff;
@@ -98,8 +122,17 @@
             font-size: 0.75rem;
             margin-right: 6px;
         }
-        .tag.urgent { background: #fff8e6; color: #bf8700; }
-        .tag.critical { background: #ffeef0; color: #cf222e; }
+
+        .tag.urgent {
+            background: #fff8e6;
+            color: #bf8700;
+        }
+
+        .tag.critical {
+            background: #ffeef0;
+            color: #cf222e;
+        }
+
         pre {
             background: #24292f;
             color: #c9d1d9;
@@ -109,26 +142,49 @@
             font-size: 0.85rem;
             margin: 12px 0;
         }
-        .red { color: #f85149; }
-        .green { color: #3fb950; }
-        .yellow { color: #d29922; }
-        .blue { color: #58a6ff; }
-        .comment { color: #8b949e; }
+
+        .red {
+            color: #f85149;
+        }
+
+        .green {
+            color: #3fb950;
+        }
+
+        .yellow {
+            color: #d29922;
+        }
+
+        .blue {
+            color: #58a6ff;
+        }
+
+        .comment {
+            color: #8b949e;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
             margin: 16px 0;
         }
-        th, td {
+
+        th,
+        td {
             padding: 12px;
             text-align: left;
             border: 1px solid #d0d7de;
         }
+
         th {
             background: #f6f8fa;
             font-weight: 600;
         }
-        .checkbox { color: #3fb950; }
+
+        .checkbox {
+            color: #3fb950;
+        }
+
         .back-link {
             display: inline-block;
             margin-top: 20px;
@@ -137,6 +193,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="header">
         <h1>🏢 LUXORA Internal Wiki</h1>
@@ -207,7 +264,8 @@
                         <td>Daily backups</td>
                     </tr>
                 </table>
-                <p class="comment">// SSH keys stored in /home/*/.[ssh/config](http://internal.luxora.local/files/ssh)</p>
+                <p class="comment">// SSH keys stored in /home/*/.[ssh/config](http://internal.luxora.local/files/ssh)
+                </p>
             </div>
 
             <!-- SSH Keys Info -->
@@ -333,55 +391,7 @@ postgres://superadmin:Sup3rS3cr3tDB!@db.internal:5432/postgres</pre>
                 <p class="red">⚠️ TODO: Move backups off web-accessible path!</p>
             </div>
 
-            <!-- Hidden Flag Hints -->
-            <div class="note">
-                <div class="note-header">2024-01-05 @ctf-admin</div>
-                <h3>🚩 CTF Flag Locations (Internal Training)</h3>
-                <table>
-                    <tr>
-                        <th>Flag</th>
-                        <th>Location</th>
-                        <th>Difficulty</th>
-                        <th>Method</th>
-                    </tr>
-                    <tr>
-                        <td>Flag 1</td>
-                        <td>/app/flags/flag.txt</td>
-                        <td>Easy</td>
-                        <td>Path Traversal</td>
-                    </tr>
-                    <tr>
-                        <td>Flag 2</td>
-                        <td>Database - users table</td>
-                        <td>Easy</td>
-                        <td>SQL Injection</td>
-                    </tr>
-                    <tr>
-                        <td>Flag 3</td>
-                        <td>/app/secrets/</td>
-                        <td>Medium</td>
-                        <td>Directory enumeration</td>
-                    </tr>
-                    <tr>
-                        <td>Flag 4</td>
-                        <td>/home/mike/flag.txt</td>
-                        <td>Medium</td>
-                        <td>RCE → File read</td>
-                    </tr>
-                    <tr>
-                        <td>Flag 5</td>
-                        <td>/home/sarah/flag.txt</td>
-                        <td>Hard</td>
-                        <td>SSH lateral movement</td>
-                    </tr>
-                    <tr>
-                        <td>Flag 6</td>
-                        <td>/root/root.txt</td>
-                        <td>Hard</td>
-                        <td>Privilege escalation</td>
-                    </tr>
-                </table>
-            </div>
+
 
             <!-- Cron Jobs -->
             <div class="note">
@@ -404,4 +414,5 @@ postgres://superadmin:Sup3rS3cr3tDB!@db.internal:5432/postgres</pre>
         </main>
     </div>
 </body>
+
 </html>

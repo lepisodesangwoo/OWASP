@@ -106,7 +106,7 @@ http://localhost:3000/flags/flag1.txt
 
 #### 🏆 Flag
 ```
-FLAG{w3lc0me_t0_lux0r4_ctf}
+FLAG{LFI_SUCCESS_LOCAL_FILE_INCLUSION}
 ```
 
 ---
@@ -164,7 +164,7 @@ curl -X POST http://localhost:3000/login \
 
 #### 🏆 Flag
 ```
-FLAG{sql_1nj3ct10n_m4st3r}
+FLAG{SQLI_SUCCESS_DATABASE_DUMPED}
 ```
 
 #### 방어 방법
@@ -241,7 +241,7 @@ curl "http://localhost:3000/download?file=../flags/flag3.txt"
 
 #### 🏆 Flag
 ```
-FLAG{s3cr3ts_d1r3ct0ry_f0und}
+FLAG{CONFIG_SUCCESS_SECRETS_EXPOSED}
 ```
 
 ---
@@ -299,7 +299,7 @@ curl "http://localhost:3000/read-file?file=../../app/flags/flag4.txt"
 
 #### 🏆 Flag
 ```
-FLAG{rc3_4nd_f1l3_r34d_4ch13v3d}
+FLAG{RCE_SUCCESS_COMMAND_EXECUTION}
 ```
 
 #### 다음 단계 힌트
@@ -382,7 +382,7 @@ cat /app/flags/flag5.txt
 
 #### 🏆 Flag
 ```
-FLAG{l4t3r4l_m0v3m3nt_m4st3r}
+FLAG{IDOR_SUCCESS_ACCESS_CONTROL_BYPASS}
 ```
 
 #### 다음 단계 힌트
@@ -484,10 +484,14 @@ cat /root/root.txt
 
 #### 🏆 Flag
 ```
-FLAG{r00t_4cc3ss_4ch13v3d_y0u_4r3_4_h4ck3r}
+FLAG{PRIVESC_SUCCESS_ROOT_OBTAINED}
 ```
 
 ---
+
+## 🚀 추가 적용된 해킹 플래그 목록
+
+현재 `/app/flags` 폴더에는 총 24종의 고유 해킹 플래그가 준비되어 있으며, 각 플래그는 고유한 OWASP 공격 기법을 성공했을 때만 획득 가능합니다! (XSS, XXE, Deserialization, SSTI, LDAP, IPv4 SSRF, Prototype Pollution 등)
 
 ## 전체 취약점 목록
 
@@ -639,12 +643,12 @@ app.post('/upload', (req, res) => {
 
 | Flag | 난이도 | 카테고리 | 플래그 값 |
 |------|--------|----------|-----------|
-| 1 | 🟢 Easy | Reconnaissance | `FLAG{w3lc0me_t0_lux0r4_ctf}` |
-| 2 | 🟡 Medium | SQL Injection | `FLAG{sql_1nj3ct10n_m4st3r}` |
-| 3 | 🟡 Medium | Directory Enumeration | `FLAG{s3cr3ts_d1r3ct0ry_f0und}` |
-| 4 | 🔴 Hard | RCE / File Read | `FLAG{rc3_4nd_f1l3_r34d_4ch13v3d}` |
-| 5 | 🔴 Hard | Lateral Movement | `FLAG{l4t3r4l_m0v3m3nt_m4st3r}` |
-| 6 | 🔴 Hard | Privilege Escalation | `FLAG{r00t_4cc3ss_4ch13v3d_y0u_4r3_4_h4ck3r}` |
+| 1 | 🟢 Easy | Reconnaissance | `FLAG{LFI_SUCCESS_LOCAL_FILE_INCLUSION}` |
+| 2 | 🟡 Medium | SQL Injection | `FLAG{SQLI_SUCCESS_DATABASE_DUMPED}` |
+| 3 | 🟡 Medium | Directory Enumeration | `FLAG{CONFIG_SUCCESS_SECRETS_EXPOSED}` |
+| 4 | 🔴 Hard | RCE / File Read | `FLAG{RCE_SUCCESS_COMMAND_EXECUTION}` |
+| 5 | 🔴 Hard | Lateral Movement | `FLAG{IDOR_SUCCESS_ACCESS_CONTROL_BYPASS}` |
+| 6 | 🔴 Hard | Privilege Escalation | `FLAG{PRIVESC_SUCCESS_ROOT_OBTAINED}` |
 
 ---
 

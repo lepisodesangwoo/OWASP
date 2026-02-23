@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -99,7 +100,7 @@
 
         .nav-item:hover {
             color: var(--fg);
-            background: rgba(255,255,255,0.03);
+            background: rgba(255, 255, 255, 0.03);
         }
 
         .nav-item.active {
@@ -216,10 +217,21 @@
             font-size: 1.5rem;
         }
 
-        .stat-icon.blue { background: rgba(33, 150, 243, 0.15); }
-        .stat-icon.green { background: rgba(76, 175, 80, 0.15); }
-        .stat-icon.orange { background: rgba(255, 152, 0, 0.15); }
-        .stat-icon.purple { background: rgba(156, 39, 176, 0.15); }
+        .stat-icon.blue {
+            background: rgba(33, 150, 243, 0.15);
+        }
+
+        .stat-icon.green {
+            background: rgba(76, 175, 80, 0.15);
+        }
+
+        .stat-icon.orange {
+            background: rgba(255, 152, 0, 0.15);
+        }
+
+        .stat-icon.purple {
+            background: rgba(156, 39, 176, 0.15);
+        }
 
         .stat-trend {
             font-size: 0.8rem;
@@ -313,7 +325,7 @@
         }
 
         .data-table tbody tr:hover {
-            background: rgba(255,255,255,0.02);
+            background: rgba(255, 255, 255, 0.02);
         }
 
         .order-id {
@@ -387,10 +399,21 @@
             flex-shrink: 0;
         }
 
-        .activity-icon.order { background: rgba(33, 150, 243, 0.15); }
-        .activity-icon.user { background: rgba(76, 175, 80, 0.15); }
-        .activity-icon.payment { background: rgba(156, 39, 176, 0.15); }
-        .activity-icon.alert { background: rgba(244, 67, 54, 0.15); }
+        .activity-icon.order {
+            background: rgba(33, 150, 243, 0.15);
+        }
+
+        .activity-icon.user {
+            background: rgba(76, 175, 80, 0.15);
+        }
+
+        .activity-icon.payment {
+            background: rgba(156, 39, 176, 0.15);
+        }
+
+        .activity-icon.alert {
+            background: rgba(244, 67, 54, 0.15);
+        }
 
         .activity-content {
             flex: 1;
@@ -487,21 +510,31 @@
 
         /* Responsive */
         @media (max-width: 1200px) {
-            .stats-grid { grid-template-columns: repeat(2, 1fr); }
-            .content-grid { grid-template-columns: 1fr; }
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
             }
+
             .main-content {
                 margin-left: 0;
             }
-            .stats-grid { grid-template-columns: 1fr; }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
+
 <body>
     <div class="admin-container">
         <!-- Sidebar -->
@@ -577,123 +610,147 @@
                 </div>
             </div>
 
-            <!-- Search Bar -->
-            <form class="search-form" action="/admin/search" method="GET">
-                <div class="search-input-group">
-                    <input type="text" name="q" class="search-input" placeholder="Search orders, customers, products...">
-                    <button type="submit" class="search-btn">Search</button>
+            <% if (typeof flag !=='undefined' ) { %>
+                <div
+                    style="background-color: #f85149; color: white; padding: 15px; border-radius: 8px; margin-bottom: 24px; font-weight: bold;">
+                    🎉 <%= flag %>
                 </div>
-            </form>
+                <% } %>
 
-            <!-- Stats -->
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-icon blue">💰</div>
-                        <span class="stat-trend up">+12.5%</span>
-                    </div>
-                    <div class="stat-value">$124,563</div>
-                    <div class="stat-label">Total Revenue</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-icon green">📦</div>
-                        <span class="stat-trend up">+8.2%</span>
-                    </div>
-                    <div class="stat-value">1,284</div>
-                    <div class="stat-label">Total Orders</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-icon orange">👥</div>
-                        <span class="stat-trend up">+23.1%</span>
-                    </div>
-                    <div class="stat-value">8,492</div>
-                    <div class="stat-label">Customers</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-icon purple">⭐</div>
-                        <span class="stat-trend down">-2.4%</span>
-                    </div>
-                    <div class="stat-value">4.8</div>
-                    <div class="stat-label">Avg. Rating</div>
-                </div>
-            </div>
+                    <!-- Search Bar -->
+                    <form class="search-form" action="/admin/search" method="GET">
+                        <div class="search-input-group">
+                            <input type="text" name="q" class="search-input"
+                                placeholder="Search orders, customers, products...">
+                            <button type="submit" class="search-btn">Search</button>
+                        </div>
+                    </form>
 
-            <!-- Content Grid -->
-            <div class="content-grid">
-                <!-- Recent Orders -->
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">Recent Orders</h2>
-                        <button class="card-action">View All →</button>
-                    </div>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Order ID</th>
-                                <th>Customer</th>
-                                <th>Product</th>
-                                <th>Amount</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% recentOrders.forEach(order => { %>
-                            <tr>
-                                <td><span class="order-id">#<%= order.id %></span></td>
-                                <td>
-                                    <div class="customer-cell">
-                                        <div class="customer-avatar"><%= order.customer.charAt(0) %></div>
-                                        <span><%= order.customer %></span>
-                                    </div>
-                                </td>
-                                <td><%= order.product %></td>
-                                <td>$<%= order.amount.toFixed(2) %></td>
-                                <td><span class="status-badge status-<%= order.status %>"><%= order.status %></span></td>
-                            </tr>
-                            <% }); %>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Activity & Quick Actions -->
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">Recent Activity</h2>
-                    </div>
-                    <div class="card-body">
-                        <ul class="activity-list">
-                            <% activities.forEach(activity => { %>
-                            <li class="activity-item">
-                                <div class="activity-icon <%= activity.type %>"><%= activity.icon %></div>
-                                <div class="activity-content">
-                                    <div class="activity-title"><%= activity.title %></div>
-                                    <div class="activity-time"><%= activity.time %></div>
-                                </div>
-                            </li>
-                            <% }); %>
-                        </ul>
-
-                        <div class="quick-actions">
-                            <button class="quick-action-btn" onclick="location.href='/admin/products/new'">
-                                ➕ Add Product
-                            </button>
-                            <button class="quick-action-btn" onclick="location.href='/admin/orders'">
-                                📦 View Orders
-                            </button>
-                            <button class="quick-action-btn" onclick="location.href='/admin/users'">
-                                👤 Add Customer
-                            </button>
-                            <button class="quick-action-btn" onclick="location.href='/admin/reports'">
-                                📊 Reports
-                            </button>
+                    <!-- Stats -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-icon blue">💰</div>
+                                <span class="stat-trend up">+12.5%</span>
+                            </div>
+                            <div class="stat-value">$124,563</div>
+                            <div class="stat-label">Total Revenue</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-icon green">📦</div>
+                                <span class="stat-trend up">+8.2%</span>
+                            </div>
+                            <div class="stat-value">1,284</div>
+                            <div class="stat-label">Total Orders</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-icon orange">👥</div>
+                                <span class="stat-trend up">+23.1%</span>
+                            </div>
+                            <div class="stat-value">8,492</div>
+                            <div class="stat-label">Customers</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-icon purple">⭐</div>
+                                <span class="stat-trend down">-2.4%</span>
+                            </div>
+                            <div class="stat-value">4.8</div>
+                            <div class="stat-label">Avg. Rating</div>
                         </div>
                     </div>
-                </div>
-            </div>
+
+                    <!-- Content Grid -->
+                    <div class="content-grid">
+                        <!-- Recent Orders -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h2 class="card-title">Recent Orders</h2>
+                                <button class="card-action">View All →</button>
+                            </div>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Order ID</th>
+                                        <th>Customer</th>
+                                        <th>Product</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% recentOrders.forEach(order=> { %>
+                                        <tr>
+                                            <td><span class="order-id">#<%= order.id %></span></td>
+                                            <td>
+                                                <div class="customer-cell">
+                                                    <div class="customer-avatar">
+                                                        <%= order.customer.charAt(0) %>
+                                                    </div>
+                                                    <span>
+                                                        <%= order.customer %>
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <%= order.product %>
+                                            </td>
+                                            <td>$<%= order.amount.toFixed(2) %>
+                                            </td>
+                                            <td><span class="status-badge status-<%= order.status %>">
+                                                    <%= order.status %>
+                                                </span></td>
+                                        </tr>
+                                        <% }); %>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Activity & Quick Actions -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h2 class="card-title">Recent Activity</h2>
+                            </div>
+                            <div class="card-body">
+                                <ul class="activity-list">
+                                    <% activities.forEach(activity=> { %>
+                                        <li class="activity-item">
+                                            <div class="activity-icon <%= activity.type %>">
+                                                <%= activity.icon %>
+                                            </div>
+                                            <div class="activity-content">
+                                                <div class="activity-title">
+                                                    <%= activity.title %>
+                                                </div>
+                                                <div class="activity-time">
+                                                    <%= activity.time %>
+                                                </div>
+                                            </div>
+                                        </li>
+                                        <% }); %>
+                                </ul>
+
+                                <div class="quick-actions">
+                                    <button class="quick-action-btn" onclick="location.href='/admin/products/new'">
+                                        ➕ Add Product
+                                    </button>
+                                    <button class="quick-action-btn" onclick="location.href='/admin/orders'">
+                                        📦 View Orders
+                                    </button>
+                                    <button class="quick-action-btn" onclick="location.href='/admin/users'">
+                                        👤 Add Customer
+                                    </button>
+                                    <button class="quick-action-btn" onclick="location.href='/admin/reports'">
+                                        📊 Reports
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
         </main>
     </div>
 </body>
+
 </html>

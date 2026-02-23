@@ -47,11 +47,11 @@ INSERT INTO users (username, password, email, ssn, credit_card, role, security_q
 ('guest', 'guest', 'guest@example.com', '456-78-9012', '4444-4444-4444-4444', 'guest', 'What is your favorite color?', 'sk-guest-key-22222'),
 ('root', 'toor', 'root@localhost', '567-89-0123', '4555-5555-5555-5555', 'admin', 'What is 2+2?', 'sk-root-key-33333'),
 -- Additional admin accounts for privilege escalation
-('superadmin', 'Sup3rS3cr3t!', 'superadmin@luxora-internal.com', '678-90-1234', '4666-6666-6666-6666', 'superadmin', 'Company founded year?', 'sk-superadmin-FLAG{pr1v1l3g3_3sc4l4t10n_m4st3r}'),
+('superadmin', 'Sup3rS3cr3t!', 'superadmin@luxora-internal.com', '678-90-1234', '4666-6666-6666-6666', 'superadmin', 'Company founded year?', 'sk-superadmin-key-44444'),
 ('dbadmin', 'D8bas3P@ss!', 'dbadmin@luxora-internal.com', '789-01-2345', '4777-7777-7777-7777', 'admin', 'Database port?', 'sk-dbadmin-key-55555'),
 ('backup_admin', 'backup2024', 'backup@luxora.com', '890-12-3456', '4888-8888-8888-8888', 'admin', 'Backup server name?', 'sk-backup-key-66666'),
 -- CTF targets with sensitive data
-('ctf_flag_holder', 'Fl4gH0ld3r#', 'flags@luxora-ctf.internal', '901-23-4567', '4999-9999-9999-9999', 'user', 'CTF challenge?', 'FLAG{sql_1nj3ct10n_m4st3r}'),
+('ctf_flag_holder', 'Fl4gH0ld3r#', 'flags@luxora-ctf.internal', '901-23-4567', '4999-9999-9999-9999', 'user', 'CTF challenge?', 'sk-ctf-key-88888'),
 ('developer', 'D3vT3st!ng', 'dev@luxora.com', '012-34-5678', '4000-0000-0000-0000', 'developer', 'IDE name?', 'sk-dev-key-77777');
 
 INSERT INTO comments (author, content) VALUES
@@ -120,7 +120,12 @@ INSERT INTO secrets (name, value) VALUES
 ('API_KEY', 'sk-live-abcdef123456'),
 ('JWT_SECRET', 'my_jwt_secret_key'),
 ('AWS_SECRET', 'aws_secret_access_key_123'),
-('ENCRYPTION_KEY', 'aes256_encryption_key_xyz');
+('ENCRYPTION_KEY', 'aes256_encryption_key_xyz'),
+('SQLI_FLAG', 'FLAG{SQLI_SUCCESS_DATABASE_DUMPED} - 이 플래그는 SQL Injection 공격 기법이 성공적으로 통과되었음을 나타냅니다.');
+
+-- Hidden user for IDOR
+INSERT INTO users (id, username, password, email, ssn, credit_card, role, security_question, api_key) VALUES
+(999, 'hidden_user', 'cantlogin', 'FLAG{IDOR_SUCCESS_ACCESS_CONTROL_BYPASS}', 'IDOR 플래그', '이 플래그는 Insecure Direct Object Reference (IDOR) 공격 기법이 성공적으로 통과되었음을 나타냅니다.', 'user', 'What is the flag?', 'sk-idor-flag');
 
 -- Create views for easier exploitation
 CREATE OR REPLACE VIEW user_credentials AS

