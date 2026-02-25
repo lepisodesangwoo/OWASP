@@ -33,6 +33,12 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://vulnuser:vulnpass@localhost:5432/vulndb'
 });
 
+// Route modules
+const routes = require('./routes');
+
+// Mount route modules
+app.use('/', routes);
+
 // ==========================================
 // HOME PAGE - Shopping Mall
 // ==========================================
@@ -63,137 +69,6 @@ app.get('/', async (req, res) => {
     ];
     res.render('shop', { products, title: 'LUXORA - Premium Lifestyle Store' });
   }
-});
-
-// ==========================================
-// INTERNAL DEVELOPER RESOURCES (Hidden but accessible)
-// ==========================================
-
-// Dev notes wiki - accessible if you know the URL
-app.get('/dev-notes', (req, res) => {
-  res.render('dev-notes');
-});
-
-// API documentation - VULN: Exposes all endpoints
-app.get('/api-docs', (req, res) => {
-  res.json({
-    title: 'LUXORA API Documentation',
-    version: '1.0.0',
-    endpoints: {
-      public: [
-        { method: 'GET', path: '/', description: 'Home page' },
-        { method: 'GET', path: '/products', description: 'List products' },
-        { method: 'GET', path: '/products/:id', description: 'Get product' },
-        { method: 'GET', path: '/search?q=', description: 'Search products' }
-      ],
-      auth: [
-        { method: 'POST', path: '/login', description: 'User login', vuln: 'SQL Injection' },
-        { method: 'POST', path: '/register', description: 'User registration' },
-        { method: 'GET', path: '/account', description: 'User account' },
-        { method: 'GET', path: '/profile/:id', description: 'User profile', vuln: 'IDOR' }
-      ],
-      admin: [
-        { method: 'GET', path: '/admin', description: 'Admin dashboard', vuln: 'Cookie bypass' },
-        { method: 'GET', path: '/admin/login', description: 'Admin login' }
-      ],
-      dangerous: [
-        { method: 'GET', path: '/upload', description: 'File upload', vuln: 'RCE via web shell' },
-        { method: 'GET', path: '/image?url=', description: 'Image proxy', vuln: 'SSRF' },
-        { method: 'GET', path: '/download?file=', description: 'File download', vuln: 'Path traversal' },
-        { method: 'GET', path: '/debug', description: 'Debug info', vuln: 'Info disclosure' },
-        { method: 'GET', path: '/config', description: 'Config', vuln: 'Credential exposure' },
-        { method: 'GET', path: '/cmd?exec=', description: 'Command exec', vuln: 'RCE' },
-        { method: 'POST', path: '/webshell', description: 'Web shell', vuln: 'RCE' }
-      ]
-    },
-    note: 'Some endpoints may have security issues. See /dev-notes for details.'
-  });
-});
-
-// Robots.txt - VULN: Exposes hidden paths
-app.get('/robots.txt', (req, res) => {
-  res.type('text/plain').send(`# robots.txt for LUXORA
-User-agent: *
-Disallow: /admin/
-Disallow: /api/v1/
-Disallow: /debug/
-Disallow: /config/
-Disallow: /dev-notes/
-Disallow: /api-docs
-Disallow: /backup/
-Disallow: /.git/
-Disallow: /secrets/
-Disallow: /flags/
-Disallow: /.hidden/
-Disallow: /uploads/
-Disallow: /files?dir=
-Disallow: /download?file=
-`);
-});
-
-// Sitemap with hidden endpoints
-app.get('/sitemap.xml', (req, res) => {
-  res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://luxora.com/</loc></url>
-  <url><loc>https://luxora.com/products</loc></url>
-  <url><loc>https://luxora.com/new-arrivals</loc></url>
-  <url><loc>https://luxora.com/sale</loc></url>
-  <!-- TODO: Remove internal URLs before production! -->
-  <url><loc>https://luxora.com/admin</loc></url>
-  <url><loc>https://luxora.com/dev-notes</loc></url>
-  <url><loc>https://luxora.com/api-docs</loc></url>
-</urlset>
-`);
-});
-
-// .well-known - common security research path
-app.get('/.well-known/security.txt', (req, res) => {
-  res.type('text/plain').send(`Contact: security@luxora.com
-Expires: 2024-12-31T23:59:00.000Z
-Preferred-Languages: en, ko
-
-# Internal Security Notes
-# Admin credentials: admin:admin123
-# SSH keys at: /home/mike/.ssh/id_rsa
-# Backups at: /var/backups/
-`);
-});
-
-// Backup directory listing - VULN: Exposes backup files
-app.get('/backup', (req, res) => {
-  res.json({
-    message: 'Backup Directory',
-    files: [
-      { name: 'db_backup_2024-01-15.sql.gz', size: '15MB', date: '2024-01-15' },
-      { name: 'db_backup_2024-01-14.sql.gz', size: '14MB', date: '2024-01-14' },
-      { name: 'ssh_keys_backup.tar.gz', size: '2KB', date: '2024-01-10' },
-      { name: 'config_backup.tar.gz', size: '5KB', date: '2024-01-10' },
-      { name: 'user_data_export.csv', size: '1.2MB', date: '2024-01-12' }
-    ],
-    hint: 'Download via /download?file=../backup/filename'
-  });
-});
-
-// Git exposure simulation - VULN: .git directory exposed
-app.get('/.git/config', (req, res) => {
-  res.type('text/plain').send(`[core]
-	repositoryformatversion = 0
-	filemode = true
-	bare = false
-	logallrefupdates = true
-[remote "origin"]
-	url = git@github.com:luxora/internal-shop.git
-	fetch = +refs/heads/*:refs/remotes/origin/*
-[branch "main"]
-	remote = origin
-	merge = refs/heads/main
-[user]
-	name = Mike Johnson
-	email = mike@luxora.com
-[credential]
-	helper = store
-`);
 });
 
 // ==========================================
@@ -722,90 +597,6 @@ app.get('/profile/:id', async (req, res) => {
   } catch (err) {
     res.status(500).send(err.message);
   }
-});
-
-// Admin Login Page
-app.get('/admin/login', (req, res) => {
-  res.render('admin-login', { error: false });
-});
-
-// Admin Login Handler - VULN: Weak credentials (admin:admin123, root:toor)
-app.post('/admin/login', (req, res) => {
-  const { username, password } = req.body;
-
-  // VULN: Hardcoded weak admin credentials
-  const adminUsers = {
-    'admin': 'admin123',
-    'root': 'toor',
-    'administrator': 'administrator'
-  };
-
-  // VULN: Timing attack possible, no rate limiting
-  if (adminUsers[username] && adminUsers[username] === password) {
-    // VULN: Cookie-based auth, client-controlled
-    res.cookie('auth', JSON.stringify({ username, role: 'admin' }), { httpOnly: false });
-    res.cookie('isAdmin', 'true');
-    return res.redirect('/admin');
-  }
-
-  // VULN: Different error for user exists vs wrong password (enumeration)
-  res.render('admin-login', { error: true });
-});
-
-// Admin Dashboard - VULN: Only checks cookie, easily bypassed
-app.get('/admin', (req, res) => {
-  // VULN: Client-side cookie can be manipulated
-  const auth = req.cookies.auth;
-  const isAdmin = req.cookies.isAdmin === 'true';
-
-  if (auth || isAdmin) {
-    try {
-      const user = auth ? JSON.parse(auth) : { role: isAdmin ? 'admin' : 'user' };
-      // VULN: Trusts client-side cookie data for role
-      if (user.role === 'admin' || isAdmin) {
-        const flag = 'FLAG{ADMIN_AUTH_SUCCESS_COOKIE_BYPASS} - 이 플래그는 관리자 권한 우회(Cookie Bypass) 공격 기법이 성공적으로 통과되었음을 나타냅니다.';
-        const recentOrders = [
-          { id: 'ORD-001', customer: 'John Smith', product: 'Leather Tote', amount: 299.00, status: 'completed' },
-          { id: 'ORD-002', customer: 'Sarah Johnson', product: 'Cashmere Sweater', amount: 249.00, status: 'processing' },
-          { id: 'ORD-003', customer: 'Mike Wilson', product: 'Minimalist Watch', amount: 189.00, status: 'pending' },
-          { id: 'ORD-004', customer: 'Emily Davis', product: 'Silk Scarf', amount: 89.00, status: 'completed' },
-          { id: 'ORD-005', customer: 'David Brown', product: 'Premium Sunglasses', amount: 159.00, status: 'processing' }
-        ];
-
-        const activities = [
-          { type: 'order', icon: '📦', title: 'New order #ORD-005 received', time: '5 min ago' },
-          { type: 'user', icon: '👤', title: 'New customer registered', time: '12 min ago' },
-          { type: 'payment', icon: '💳', title: 'Payment confirmed for #ORD-003', time: '28 min ago' },
-          { type: 'alert', icon: '⚠️', title: 'Low stock alert: Leather Belt', time: '1 hour ago' }
-        ];
-
-        return res.render('admin-panel', { user, recentOrders, activities, flag });
-      }
-    } catch (e) {
-      // VULN: Returns detailed error
-    }
-  }
-  res.redirect('/admin/login');
-});
-
-// ==========================================
-// A02:2021 - CRYPTOGRAPHIC FAILURES
-// ==========================================
-app.get('/encrypt', (req, res) => {
-  const { data } = req.query;
-
-  // VULN: Using weak base64 "encryption"
-  const encrypted = Buffer.from(data || '').toString('base64');
-
-  // VULN: Hardcoded encryption key exposed
-  const secretKey = 'my_super_secret_key_12345';
-
-  res.json({
-    encrypted,
-    secretKey, // VULN: Exposing secret
-    algorithm: 'base64', // VULN: Not real encryption
-    flag: 'FLAG{CRYPTO_WEAK_ENCRYPTION_BYPASSED} - 이 플래그는 Cryptographic Failures(취약한 암호화) 기법이 성공적으로 통과되었음을 나타냅니다.'
-  });
 });
 
 // Password stored in plaintext
