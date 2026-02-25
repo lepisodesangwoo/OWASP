@@ -513,34 +513,7 @@ app.get('/track-order', async (req, res) => {
   }
 });
 
-// Checkout page
-app.get('/checkout', (req, res) => {
-  res.render('checkout', { title: 'Checkout - LUXORA' });
-});
-
-app.post('/checkout', (req, res) => {
-  // VULN: Credit card data logged
-  const { cardNumber, expiry, cvv, name } = req.body;
-  console.log('Payment received:', { cardNumber, expiry, cvv, name });
-
-  res.redirect('/checkout/success');
-});
-
-app.get('/checkout/success', (req, res) => {
-  res.render('checkout-success', { title: 'Order Confirmed - LUXORA' });
-});
-
-// About Page
-app.get('/about', (req, res) => {
-  res.render('about', { title: 'About Us - LUXORA' });
-});
-
-// Contact Page
-app.get('/contact', (req, res) => {
-  const sent = req.query.sent || null;
-  res.render('contact', { title: 'Contact Us - LUXORA', sent });
-});
-
+// Contact Page (POST handler - has DB dependency)
 app.post('/contact', async (req, res) => {
   const { name, email, message } = req.body;
 
