@@ -668,9 +668,14 @@ app.get('/products/:id', async (req, res) => {
     const result = await pool.query(query);
 
     if (result.rows.length > 0) {
+      // Convert DECIMAL to number for template rendering (PostgreSQL returns strings)
+      const product = result.rows[0];
+      if (product.price) product.price = parseFloat(product.price);
+      if (product.original_price) product.original_price = parseFloat(product.original_price);
+
       // Get reviews - VULN: Stored XSS will be rendered
       const reviewsResult = await pool.query('SELECT * FROM comments ORDER BY created_at DESC LIMIT 10');
-      res.render('product', { product: result.rows[0], reviews: reviewsResult.rows });
+      res.render('product', { product, reviews: reviewsResult.rows });
     } else {
       res.status(404).send('Product not found');
     }
