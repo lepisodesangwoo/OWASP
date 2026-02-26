@@ -189,8 +189,9 @@ router.get('/sqli/diamond', async (req, res) => {
   if (!input) {
     return res.json({
       endpoint: '/sqli/diamond',
-      hint: 'Try: Unicode normalization, HTTP parameter pollution',
-      filter: 'Commercial WAF simulation'
+      hint: 'Try: Full-width unicode (ｕｎｉｏｎ → union), or double URL encoding',
+      filter: 'Commercial WAF simulation',
+      bypass: 'Full-width characters: ＵＮＩＯＮ or ＳＥＬＥＣＴ'
     });
   }
 
@@ -204,21 +205,31 @@ router.get('/sqli/diamond', async (req, res) => {
 
   const normalized = input.normalize('NFKC');
 
+  // WAF only checks original input, not normalized version
+  // This allows full-width unicode bypass: ｕｎｉｏｎ normalizes to union
   for (const pattern of wafBlocked) {
-    if (pattern.test(normalized)) {
+    if (pattern.test(input)) {
       return res.status(403).json({ error: 'WAF: Malicious pattern detected' });
     }
   }
 
+  // Check if bypass was used (full-width or special encoding)
+  const hasFullWidth = /[\uff00-\uffef]/.test(input);
+  const wasBypassed = hasFullWidth || normalized !== input;
+
   try {
-    const query = `SELECT * FROM products WHERE name LIKE '%${input}%'`;
+    // Query uses normalized input (vulnerable)
+    const query = `SELECT * FROM products WHERE name LIKE '%${normalized}%'`;
     const result = await pool.query(query);
 
-    if (input.length > 10 && result.rows.length > 0) {
+    if (wasBypassed && input.length > 5) {
       const flagContent = getFlag('sqli', 'sqli_diamond.txt');
       return res.json({
         success: true,
-        message: 'WAF bypass successful!',
+        message: 'WAF bypass successful! Unicode normalization attack!',
+        bypass: hasFullWidth ? 'Full-width unicode characters' : 'Encoding bypass',
+        originalInput: input,
+        normalizedInput: normalized,
         data: result.rows,
         flag: flagContent
       });
@@ -365,30 +376,43 @@ router.get('/cmdi/gold', (req, res) => {
   if (!host) {
     return res.json({
       endpoint: '/cmdi/gold',
-      hint: 'Try unicode alternatives: %0a, \\u0020, etc.',
-      filter: 'Blocks ; | ` $() and common separators'
+      hint: 'Try full-width unicode: ｜ (U+FF5C) for |, ｀ (U+FF40) for `',
+      filter: 'Blocks ASCII ; | ` $() and common separators',
+      bypass: 'Full-width variants: ｜ ｀ ＄ （ ）'
     });
   }
 
+  // Block ASCII command characters
   const blocked = [';', '|', '`', '$', '(', ')', '&', '\n', '\r'];
   if (blocked.some(char => host.includes(char))) {
     return res.status(403).json({ error: 'Blocked: Command characters detected' });
   }
 
+  // Normalize to detect full-width bypasses
   const normalized = host.normalize('NFKC');
+
+  // Check if full-width unicode was used for bypass
+  const fullWidthPattern = /[\uff00-\uffef]/;
+  const usedFullWidthBypass = fullWidthPattern.test(host);
+
+  // Check if normalization reveals blocked chars
+  const normalizedHasBlocked = blocked.some(char => normalized.includes(char));
+
+  // If full-width bypass detected, simulate command execution
+  if (usedFullWidthBypass && normalizedHasBlocked) {
+    const flagContent = getFlag('cmdi', 'cmdi_gold.txt');
+    return res.json({
+      success: true,
+      message: 'Unicode full-width bypass successful!',
+      originalInput: host,
+      normalizedInput: normalized,
+      simulatedOutput: 'uid=0(root) gid=0(root) groups=0(root)',
+      flag: flagContent
+    });
+  }
 
   try {
     const output = execSync(`ping -c 1 ${host}`).toString();
-
-    if (output.includes('uid=') || normalized !== host) {
-      const flagContent = getFlag('cmdi', 'cmdi_gold.txt');
-      return res.json({
-        success: true,
-        message: 'Unicode bypass successful!',
-        output,
-        flag: flagContent
-      });
-    }
     res.json({ host, output });
   } catch (err) {
     res.status(500).json({ error: err.message });
