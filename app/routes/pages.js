@@ -6,6 +6,8 @@
  * VULNERABILITIES (INTENTIONAL - DO NOT FIX):
  * - Credit card data logged in plaintext (POST /checkout)
  * - User input logged without sanitization
+ *
+ * NOTE: POST /contact moved to routes/orders.js
  */
 
 const express = require('express');
@@ -43,7 +45,7 @@ router.get('/about', (req, res) => {
   res.render('about', { title: 'About Us - LUXORA' });
 });
 
-// Contact Page (GET only - POST has DB dependency, stays in server.js)
+// Contact Page (GET only - POST moved to routes/orders.js)
 router.get('/contact', (req, res) => {
   const sent = req.query.sent || null;
   res.render('contact', { title: 'Contact Us - LUXORA', sent });

@@ -10,6 +10,9 @@ const router = express.Router();
 const infoRoutes = require('./info');
 const adminRoutes = require('./admin');
 const pageRoutes = require('./pages');
+const productsRoutes = require('./products');
+const ordersRoutes = require('./orders');
+const usersRoutes = require('./users');
 const injectionRoutes = require('./injection');
 const authRoutes = require('./auth');
 const accessRoutes = require('./access');
@@ -22,6 +25,9 @@ const remainingRoutes = require('./remaining');
 router.use('/', infoRoutes);
 router.use('/', adminRoutes);
 router.use('/', pageRoutes);
+router.use('/', productsRoutes);
+router.use('/', ordersRoutes);
+router.use('/', usersRoutes);
 
 // Benchmark v2.0 tiered routes
 router.use('/', injectionRoutes);

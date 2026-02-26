@@ -7,17 +7,13 @@
 
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+const { pool } = require('../db');
 const child_process = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
 const exec = child_process.exec;
 const execSync = child_process.execSync;
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://vulnuser:vulnpass@localhost:5432/vulndb'
-});
 
 const FLAGS_DIR = path.join(__dirname, '..', 'flags', 'injection');
 

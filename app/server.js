@@ -8,7 +8,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const multer = require('multer');
-const { Pool } = require('pg');
+const { pool } = require('./db');
 const path = require('path');
 const fs = require('fs');
 const child_process = require('child_process');
@@ -27,11 +27,6 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static('public'));
-
-// Database connection
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://vulnuser:vulnpass@localhost:5432/vulndb'
-});
 
 // Route modules
 const routes = require('./routes');
@@ -72,322 +67,17 @@ app.get('/', async (req, res) => {
 });
 
 // ==========================================
-// USER AUTHENTICATION (VULNERABLE)
+// USER AUTHENTICATION
 // ==========================================
-
-// User login page
-app.get('/login', (req, res) => {
-  res.render('login', { title: 'Login - LUXORA', error: null });
-});
-
-// User login handler - VULN: SQL Injection, no rate limiting
-app.post('/login', async (req, res) => {
-  const { username, password } = req.body;
-
-  try {
-    // VULN: SQL Injection in login
-    const query = `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`;
-    const result = await pool.query(query);
-
-    if (result.rows.length > 0) {
-      const user = result.rows[0];
-      // VULN: Session data stored in client-side cookie (insecure)
-      res.cookie('session', JSON.stringify({
-        id: user.id,
-        username: user.username,
-        role: user.role
-      }), { httpOnly: false });
-
-      res.redirect('/account');
-    } else {
-      res.render('login', { title: 'Login - LUXORA', error: 'Invalid credentials' });
-    }
-  } catch (err) {
-    // VULN: Detailed error message exposure
-    res.render('login', { title: 'Login - LUXORA', error: err.message });
-  }
-});
-
-// User registration page
-app.get('/register', (req, res) => {
-  res.render('register', { title: 'Register - LUXORA', error: null });
-});
-
-// User registration handler - VULN: Plaintext passwords, no validation
-app.post('/register', async (req, res) => {
-  const { username, password, email, firstName, lastName } = req.body;
-
-  try {
-    // VULN: Password stored in plaintext
-    const result = await pool.query(
-      'INSERT INTO users (username, password, email, role) VALUES ($1, $2, $3, $4) RETURNING *',
-      [username, password, email, 'user']
-    );
-
-    // VULN: Auto-login after registration (no email verification)
-    res.cookie('session', JSON.stringify({
-      id: result.rows[0].id,
-      username,
-      role: 'user'
-    }), { httpOnly: false });
-
-    res.redirect('/account');
-  } catch (err) {
-    res.render('register', { title: 'Register - LUXORA', error: err.message });
-  }
-});
-
-// User account page - VULN: IDOR via session cookie
-app.get('/account', async (req, res) => {
-  const session = req.cookies.session;
-
-  if (!session) {
-    return res.redirect('/login');
-  }
-
-  try {
-    const user = JSON.parse(session);
-    // VULN: Trusts client-side cookie data without verification
-    const result = await pool.query('SELECT * FROM users WHERE id = $1', [user.id]);
-
-    if (result.rows.length > 0) {
-      // Get user orders
-      const orders = [
-        { id: 'ORD-2024-001', date: '2024-01-15', total: 598.00, status: 'Delivered' },
-        { id: 'ORD-2024-002', date: '2024-01-20', total: 249.00, status: 'Shipped' }
-      ];
-      res.render('account', { title: 'My Account - LUXORA', user: result.rows[0], orders });
-    } else {
-      res.redirect('/login');
-    }
-  } catch (err) {
-    res.redirect('/login');
-  }
-});
-
-// Profile page - VULN: IDOR (can view any user's profile)
-app.get('/profile/:id', async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    // VULN: No authorization check - anyone can view any profile
-    const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
-
-    if (result.rows.length > 0) {
-      res.render('profile', { title: 'Profile - LUXORA', user: result.rows[0] });
-    } else {
-      res.status(404).send('User not found');
-    }
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-// Change password - VULN: CSRF, weak policy, no current password check
-app.post('/account/password', async (req, res) => {
-  const { newPassword, confirmPassword } = req.body;
-  const session = req.cookies.session;
-
-  if (!session) {
-    return res.redirect('/login');
-  }
-
-  // VULN: No CSRF token validation
-  // VULN: No current password verification
-  // VULN: No password complexity requirements
-  if (newPassword !== confirmPassword) {
-    return res.redirect('/account?error=password_mismatch');
-  }
-
-  try {
-    const user = JSON.parse(session);
-    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [newPassword, user.id]);
-    res.redirect('/account?success=password_changed');
-  } catch (err) {
-    res.redirect('/account?error=update_failed');
-  }
-});
-
-// Logout
-app.get('/logout', (req, res) => {
-  res.clearCookie('session');
-  res.redirect('/');
-});
+// NOTE: All user auth routes moved to routes/users.js
+// Removed: GET /login, POST /login, GET /register, POST /register
+// Removed: GET /account, POST /account/password, GET /profile/:id, GET /logout
 
 // ==========================================
 // PRODUCTS & CATEGORIES
 // ==========================================
-
-// All Products Page with Pagination
-app.get('/products', async (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = 12;
-  const offset = (page - 1) * limit;
-
-  try {
-    // Get total count
-    const countResult = await pool.query('SELECT COUNT(*) FROM products');
-    const totalProducts = parseInt(countResult.rows[0].count);
-    const totalPages = Math.ceil(totalProducts / limit);
-
-    // Get paginated products
-    const result = await pool.query(
-      'SELECT id, name, price, image_url, category, badge, original_price, description FROM products ORDER BY id LIMIT $1 OFFSET $2',
-      [limit, offset]
-    );
-
-    const products = result.rows.map(p => ({
-      id: p.id,
-      name: p.name,
-      price: parseFloat(p.price),
-      image_url: p.image_url,
-      category: p.category || 'General',
-      badge: p.badge,
-      originalPrice: p.original_price ? parseFloat(p.original_price) : null,
-      description: p.description
-    }));
-
-    res.render('products', {
-      products,
-      title: 'All Products - LUXORA',
-      category: 'All',
-      pagination: {
-        page,
-        totalPages,
-        totalProducts,
-        hasNext: page < totalPages,
-        hasPrev: page > 1
-      }
-    });
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-// Category Page with Pagination
-app.get('/category/:name', async (req, res) => {
-  const { name } = req.params;
-  const page = parseInt(req.query.page) || 1;
-  const limit = 12;
-  const offset = (page - 1) * limit;
-
-  try {
-    // Get total count for category
-    const countResult = await pool.query(
-      'SELECT COUNT(*) FROM products WHERE category ILIKE $1',
-      [`%${name}%`]
-    );
-    const totalProducts = parseInt(countResult.rows[0].count);
-    const totalPages = Math.ceil(totalProducts / limit);
-
-    const result = await pool.query(
-      'SELECT id, name, price, image_url, category, badge, original_price, description FROM products WHERE category ILIKE $1 LIMIT $2 OFFSET $3',
-      [`%${name}%`, limit, offset]
-    );
-    const products = result.rows.map(p => ({
-      id: p.id,
-      name: p.name,
-      price: parseFloat(p.price),
-      image_url: p.image_url,
-      category: p.category || 'General',
-      badge: p.badge,
-      originalPrice: p.original_price ? parseFloat(p.original_price) : null,
-      description: p.description
-    }));
-    res.render('products', {
-      products,
-      title: `${name} - LUXORA`,
-      category: name,
-      pagination: {
-        page,
-        totalPages,
-        totalProducts,
-        hasNext: page < totalPages,
-        hasPrev: page > 1
-      }
-    });
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-// New Arrivals
-app.get('/new-arrivals', async (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = 12;
-  const offset = (page - 1) * limit;
-
-  try {
-    const countResult = await pool.query(
-      'SELECT COUNT(*) FROM products WHERE badge = $1',
-      ['New']
-    );
-    const totalProducts = parseInt(countResult.rows[0].count);
-    const totalPages = Math.ceil(totalProducts / limit);
-
-    const result = await pool.query(
-      'SELECT id, name, price, image_url, category, badge, original_price, description FROM products WHERE badge = $1 ORDER BY id DESC LIMIT $2 OFFSET $3',
-      ['New', limit, offset]
-    );
-    const products = result.rows.map(p => ({
-      id: p.id,
-      name: p.name,
-      price: parseFloat(p.price),
-      image_url: p.image_url,
-      category: p.category || 'General',
-      badge: p.badge,
-      originalPrice: p.original_price ? parseFloat(p.original_price) : null,
-      description: p.description
-    }));
-    res.render('products', {
-      products,
-      title: 'New Arrivals - LUXORA',
-      category: 'New Arrivals',
-      pagination: { page, totalPages, totalProducts, hasNext: page < totalPages, hasPrev: page > 1 }
-    });
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-// Sale Items
-app.get('/sale', async (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = 12;
-  const offset = (page - 1) * limit;
-
-  try {
-    const countResult = await pool.query(
-      'SELECT COUNT(*) FROM products WHERE badge = $1 OR original_price IS NOT NULL',
-      ['Sale']
-    );
-    const totalProducts = parseInt(countResult.rows[0].count);
-    const totalPages = Math.ceil(totalProducts / limit);
-
-    const result = await pool.query(
-      'SELECT id, name, price, image_url, category, badge, original_price, description FROM products WHERE badge = $1 OR original_price IS NOT NULL LIMIT $2 OFFSET $3',
-      ['Sale', limit, offset]
-    );
-    const products = result.rows.map(p => ({
-      id: p.id,
-      name: p.name,
-      price: parseFloat(p.price),
-      image_url: p.image_url,
-      category: p.category || 'General',
-      badge: p.badge,
-      originalPrice: p.original_price ? parseFloat(p.original_price) : null,
-      description: p.description
-    }));
-    res.render('products', {
-      products,
-      title: 'Sale - LUXORA',
-      category: 'Sale',
-      pagination: { page, totalPages, totalProducts, hasNext: page < totalPages, hasPrev: page > 1 }
-    });
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
+// NOTE: Product routes moved to routes/products.js
+// Removed: /products, /category/:name, /new-arrivals, /sale
 
 // Newsletter subscription - VULN: No validation, stores emails
 app.post('/newsletter', async (req, res) => {
@@ -430,210 +120,19 @@ app.get('/image', async (req, res) => {
   }
 });
 
-// Product image upload - VULN: No file type validation, path traversal
-app.post('/products/:id/image', upload.single('image'), (req, res) => {
-  const { id } = req.params;
-
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
-
-  // VULN: No file type validation - can upload any file type including .php, .jsp
-  // VULN: Original filename preserved
-  // VULN: File is executable if server misconfigured
-  res.json({
-    success: true,
-    message: 'Image uploaded',
-    file: {
-      originalName: req.file.originalname,
-      savedAs: req.file.filename,
-      path: `/uploads/${req.file.filename}`,
-      size: req.file.size,
-      mimetype: req.file.mimetype
-    },
-    hint: 'VULN: No file type validation - try uploading a web shell'
-  });
-});
-
-// Wishlist - VULN: Stored XSS in wishlist notes
-app.post('/wishlist', async (req, res) => {
-  const { productId, note } = req.body;
-  const session = req.cookies.session;
-
-  if (!session) {
-    return res.status(401).json({ error: 'Please login' });
-  }
-
-  try {
-    const user = JSON.parse(session);
-    // VULN: Note stored without sanitization - Stored XSS
-    await pool.query(
-      'INSERT INTO comments (author, content) VALUES ($1, $2)',
-      [user.username, `Wishlist note for product ${productId}: ${note}`]
-    );
-    res.json({ success: true, message: 'Added to wishlist' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Order tracking - VULN: IDOR + SQL Injection
-app.get('/track-order', async (req, res) => {
-  const { order_id } = req.query;
-
-  if (!order_id) {
-    return res.render('track-order', { title: 'Track Order - LUXORA', order: null, error: null });
-  }
-
-  try {
-    // VULN: SQL Injection in order lookup
-    // VULN: IDOR - no auth check, anyone can view any order
-    const query = `SELECT * FROM orders WHERE order_id = '${order_id}'`;
-    const result = await pool.query(query);
-
-    if (result.rows.length > 0) {
-      res.render('track-order', { title: 'Track Order - LUXORA', order: result.rows[0], error: null });
-    } else {
-      // Demo order for display
-      const demoOrder = {
-        order_id: order_id,
-        status: 'Shipped',
-        estimated_delivery: '2024-02-15',
-        tracking_number: 'LUX-TRACK-' + Math.random().toString(36).substr(2, 9).toUpperCase()
-      };
-      res.render('track-order', { title: 'Track Order - LUXORA', order: demoOrder, error: null });
-    }
-  } catch (err) {
-    // VULN: Exposes SQL error with query
-    res.render('track-order', {
-      title: 'Track Order - LUXORA',
-      order: null,
-      error: err.message + ' | Query: SELECT * FROM orders WHERE order_id = \'' + order_id + '\''
-    });
-  }
-});
-
-// Contact Page (POST handler - has DB dependency)
-app.post('/contact', async (req, res) => {
-  const { name, email, message } = req.body;
-
-  // VULN: User input logged without sanitization
-  console.log('Contact form:', { name, email, message });
-
-  try {
-    await pool.query(
-      'INSERT INTO comments (author, content) VALUES ($1, $2)',
-      [name, `Contact from ${email}: ${message}`]
-    );
-    res.redirect('/contact?sent=true');
-  } catch (err) {
-    res.redirect('/contact?sent=false');
-  }
-});
+// NOTE: Product routes moved to routes/products.js
+// NOTE: Wishlist, Track Order, Contact moved to routes/orders.js
 
 // ==========================================
 // A01:2021 - BROKEN ACCESS CONTROL
 // ==========================================
-const users = {
-  admin: { password: 'admin123', role: 'admin', apiKey: 'sk-admin-secret-key-12345' },
-  user: { password: 'user123', role: 'user', apiKey: 'sk-user-key-67890' },
-  guest: { password: 'guest123', role: 'guest', apiKey: 'sk-guest-key-11111' }
-};
-
-// Insecure login - no rate limiting, weak credentials
-app.post('/login', (req, res) => {
-  const { username, password } = req.body;
-  const user = users[username];
-
-  // VULN: Timing attack possible
-  if (user && user.password === password) {
-    res.cookie('auth', JSON.stringify({ username, role: user.role }), { httpOnly: false });
-    res.cookie('apiKey', user.apiKey);
-    res.json({ success: true, message: 'Login successful', apiKey: user.apiKey });
-  } else {
-    res.status(401).json({ success: false, message: 'Invalid credentials' });
-  }
-});
-
-// IDOR - Insecure Direct Object Reference
-app.get('/profile/:id', async (req, res) => {
-  const { id } = req.params;
-
-  // VULN: No authorization check, can access any user's data
-  try {
-    const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
-    if (result.rows.length > 0) {
-      res.render('profile', { user: result.rows[0] });
-    } else {
-      res.status(404).send('User not found');
-    }
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-// Password stored in plaintext
-app.post('/register', async (req, res) => {
-  const { username, password, email, ssn, creditCard } = req.body;
-
-  try {
-    // VULN: Storing password in plaintext
-    await pool.query(
-      'INSERT INTO users (username, password, email, ssn, credit_card) VALUES ($1, $2, $3, $4, $5)',
-      [username, password, email, ssn, creditCard]
-    );
-
-    // VULN: Returning sensitive data in response
-    res.json({
-      success: true,
-      user: { username, password, email, ssn, creditCard }
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// NOTE: Duplicate login/register/profile routes removed - now in routes/users.js
 
 // ==========================================
-// CART
+// CART (moved to routes/orders.js)
 // ==========================================
-app.get('/cart', (req, res) => {
-  // Demo cart items
-  const cartItems = [
-    { id: 1, name: 'Classic Leather Tote', category: 'Bags', price: 299.00, quantity: 1, size: 'M' },
-    { id: 3, name: 'Cashmere Sweater', category: 'Clothing', price: 249.00, quantity: 2, size: 'L' }
-  ];
-
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const shipping = subtotal > 100 ? 0 : 9.99;
-  const tax = subtotal * 0.08;
-  const total = subtotal + shipping + tax;
-
-  res.render('cart', { cartItems, subtotal, shipping, tax, total });
-});
-
-// Promo code - VULN: Logic bypass possible
-app.post('/cart/promo', (req, res) => {
-  const { code } = req.body;
-
-  // VULN: Promo codes are predictable and can be brute-forced
-  const validCodes = ['SAVE10', 'WELCOME20', 'VIP30', 'BLACKFRIDAY50', 'admin'];
-
-  // Flaw in business logic: the admin code grants immediate access to the flag
-  if (code === 'admin') {
-    return res.json({
-      success: true,
-      message: 'Admin promo applied!',
-      flag: 'FLAG{LOGIC_SUCCESS_BUSINESS_BYPASS} - 이 플래그는 Insecure Design (Business Logic Bypass) 기법이 성공적으로 통과되었음을 나타냅니다.'
-    });
-  }
-
-  if (validCodes.includes(code)) {
-    res.cookie('promoApplied', code);
-    res.redirect('/cart');
-  } else {
-    res.redirect('/cart?error=invalid');
-  }
-});
+// NOTE: Cart routes moved to routes/orders.js
+// Removed: GET /cart, POST /cart/promo
 
 // ==========================================
 // A03:2021 - INJECTION
@@ -658,48 +157,8 @@ app.get('/search', async (req, res) => {
   }
 });
 
-// Product Detail Page - VULN: IDOR via product ID
-app.get('/products/:id', async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    // VULN: No parameterized query (SQL Injection possible via ID)
-    const query = `SELECT * FROM products WHERE id = ${id}`;
-    const result = await pool.query(query);
-
-    if (result.rows.length > 0) {
-      // Convert DECIMAL to number for template rendering (PostgreSQL returns strings)
-      const product = result.rows[0];
-      if (product.price) product.price = parseFloat(product.price);
-      if (product.original_price) product.original_price = parseFloat(product.original_price);
-
-      // Get reviews - VULN: Stored XSS will be rendered
-      const reviewsResult = await pool.query('SELECT * FROM comments ORDER BY created_at DESC LIMIT 10');
-      res.render('product', { product, reviews: reviewsResult.rows });
-    } else {
-      res.status(404).send('Product not found');
-    }
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-// Product Reviews - VULN: Stored XSS
-app.post('/products/:id/reviews', async (req, res) => {
-  const { id } = req.params;
-  const { author, content } = req.body;
-
-  try {
-    // VULN: No input sanitization - Stored XSS
-    await pool.query(
-      'INSERT INTO comments (author, content) VALUES ($1, $2)',
-      [author, content]
-    );
-    res.redirect(`/products/${id}`);
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
+// NOTE: Product detail and review routes moved to routes/products.js
+// Removed: GET /products/:id, POST /products/:id/reviews
 
 // SQL Injection - Classic (hidden API endpoint)
 app.get('/users', async (req, res) => {
@@ -890,34 +349,8 @@ app.post('/reset-password', async (req, res) => {
   }
 });
 
-// Weak security questions
-app.get('/security-questions', async (req, res) => {
-  const { email } = req.query;
-
-  try {
-    const result = await pool.query('SELECT security_question FROM users WHERE email = $1', [email]);
-    res.json({
-      email,
-      question: result.rows[0]?.security_question || 'No question found'
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Rate limiting bypass
-app.post('/verify-code', (req, res) => {
-  const { code } = req.body;
-
-  // VULN: No rate limiting on verification
-  const correctCode = '123456';
-
-  if (code === correctCode) {
-    res.json({ success: true, message: 'Code verified!' });
-  } else {
-    res.json({ success: false, message: 'Invalid code' });
-  }
-});
+// NOTE: Password reset routes moved to routes/users.js
+// Removed: GET /security-questions, POST /verify-code
 
 // ==========================================
 // A05:2021 - SECURITY MISCONFIGURATION

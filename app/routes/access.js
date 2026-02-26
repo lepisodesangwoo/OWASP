@@ -7,13 +7,9 @@
 
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+const { pool } = require('../db');
 const path = require('path');
 const fs = require('fs');
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://vulnuser:vulnpass@localhost:5432/vulndb'
-});
 
 const FLAGS_DIR = path.join(__dirname, '..', 'flags', 'access');
 
