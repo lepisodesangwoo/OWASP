@@ -6,10 +6,10 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(100) NOT NULL,
     email VARCHAR(200),
     ssn VARCHAR(20),
-    credit_card VARCHAR(20),
+    credit_card VARCHAR(500),
     role VARCHAR(20) DEFAULT 'user',
     reset_token VARCHAR(100),
-    security_question VARCHAR(200),
+    security_question VARCHAR(500),
     api_key VARCHAR(100)
 );
 

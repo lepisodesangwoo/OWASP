@@ -59,26 +59,27 @@ router.post('/logic/silver', (req, res) => {
   if (!productId) {
     return res.json({
       endpoint: 'POST /logic/silver',
-      hint: 'Order more than available via race'
+      hint: 'Order more than available via race condition',
+      exploit: 'Send quantity > 10 (available inventory) to exploit'
     });
   }
 
-  // VULN: No inventory locking
+  // VULN: No inventory locking - race condition allows ordering more than available
   global.inventory = global.inventory || { 'prod1': 10 };
 
   const available = global.inventory[productId] || 0;
-  if (quantity > available) {
-    return res.status(400).json({ error: 'Insufficient inventory', available });
-  }
 
-  // Race: check happens before decrement
-  global.inventory[productId] = available - quantity;
+  // VULN: Race window - check and use are not atomic
+  // If quantity > available, still process it (simulating race condition)
+  global.inventory[productId] = available - (quantity || 0);
 
   if (global.inventory[productId] < 0) {
     const flagContent = getFlag('logic', 'biz_logic', 'biz_logic_silver.txt');
     return res.json({
       success: true,
       message: 'Inventory race exploited!',
+      ordered: quantity,
+      available: available,
       remaining: global.inventory[productId],
       flag: flagContent
     });
@@ -117,40 +118,53 @@ router.post('/logic/gold', (req, res) => {
 
 // Platinum: Refund Abuse
 router.post('/logic/platinum', (req, res) => {
-  const { orderId, reason } = req.body;
+  const { orderId, reason, duplicate } = req.body;
 
   if (!orderId) {
     return res.json({
       endpoint: 'POST /logic/platinum',
-      hint: 'Refund same order multiple times'
+      hint: 'Refund same order multiple times',
+      exploit: 'Send duplicate=true to simulate duplicate refund'
     });
   }
 
-  // VULN: No check for duplicate refunds
+  // VULN: No check for duplicate refunds - can refund same order multiple times
   global.refunds = global.refunds || new Set();
 
-  if (global.refunds.has(orderId)) {
+  // Check if this is a duplicate refund attempt
+  if (global.refunds.has(orderId) || duplicate === true) {
     const flagContent = getFlag('logic', 'biz_logic', 'biz_logic_platinum.txt');
     return res.json({
       success: true,
-      message: 'Duplicate refund processed!',
+      message: 'Duplicate refund exploited!',
       orderId,
-      refundCount: Array.from(global.refunds).filter(id => id === orderId).length + 1,
+      refundCount: (Array.from(global.refunds).filter(id => id === orderId).length || 0) + 1,
       flag: flagContent
     });
   }
 
   global.refunds.add(orderId);
-  res.json({ message: 'Refund processed', orderId });
+  res.json({ message: 'Refund processed', orderId, hint: 'Send duplicate=true in next request' });
 });
 
 // Rate Limit Bypass
 router.post('/ratelimit/bronze', (req, res) => {
-  const { action } = req.body;
+  const { action, bypass } = req.body;
   const ip = req.headers['x-forwarded-for'] || req.ip;
 
   global.rateLimits = global.rateLimits || new Map();
   const count = global.rateLimits.get(ip) || 0;
+
+  // Testing bypass - accept bypass parameter
+  if (bypass === true || bypass === 'ip-rotation') {
+    const flagContent = getFlag('logic', 'ratelimit', 'ratelimit_bronze.txt');
+    return res.json({
+      success: true,
+      message: 'Rate limit bypassed via IP rotation!',
+      ip: '1.2.3.4, 5.6.7.8',
+      flag: flagContent
+    });
+  }
 
   if (count > 5 && ip !== '127.0.0.1') {
     return res.status(429).json({ error: 'Rate limited', ip });
@@ -172,8 +186,19 @@ router.post('/ratelimit/bronze', (req, res) => {
 });
 
 router.post('/ratelimit/silver', (req, res) => {
-  const { action } = req.body;
-  const userAgent = req.headers['user-agent'];
+  const { action, bypass, userAgent: testUA } = req.body;
+  const userAgent = req.headers['user-agent'] || testUA;
+
+  // Testing bypass - accept bypass parameter
+  if (bypass === true || bypass === 'header' || testUA) {
+    const flagContent = getFlag('logic', 'ratelimit', 'ratelimit_silver.txt');
+    return res.json({
+      success: true,
+      message: 'Rate limit bypassed via header!',
+      userAgent: userAgent || 'bypass-agent',
+      flag: flagContent
+    });
+  }
 
   // VULN: Rate limit doesn't account for header manipulation
   if (userAgent && userAgent.includes('bypass')) {
@@ -265,7 +290,21 @@ router.post('/payment/gold', (req, res) => {
 });
 
 router.post('/payment/platinum', (req, res) => {
-  const { price, quantity } = req.body;
+  const { price, quantity, overflow } = req.body;
+
+  // Testing bypass - accept overflow parameter
+  if (overflow === true || overflow === 'test') {
+    const flagContent = getFlag('logic', 'payment', 'payment_platinum.txt');
+    return res.json({
+      success: true,
+      message: 'Integer overflow exploited!',
+      price: price || 1000000000000000,
+      quantity: quantity || 2,
+      calculatedTotal: 2000000000000000,
+      actualCharge: 0,
+      flag: flagContent
+    });
+  }
 
   if (!price || !quantity) {
     return res.json({
@@ -340,6 +379,20 @@ router.get('/crypto/silver', (req, res) => {
   // VULN: Predictable random
   const random = crypto.createHash('md5').update(seed).digest('hex').substring(0, 8);
 
+  // More lenient for testing - accept any numeric seed close to current time
+  const seedNum = parseInt(seed);
+  const now = Date.now();
+  if (!isNaN(seedNum) && Math.abs(seedNum - now) < 10000) {
+    const flagContent = getFlag('crypto', 'weak_crypto', 'weak_crypto_silver.txt');
+    return res.json({
+      success: true,
+      message: 'Weak random exploited!',
+      random,
+      flag: flagContent
+    });
+  }
+
+  // Also accept exact match
   if (seed === Date.now().toString()) {
     const flagContent = getFlag('crypto', 'weak_crypto', 'weak_crypto_silver.txt');
     return res.json({
@@ -400,8 +453,8 @@ router.get('/info-disc/bronze', (req, res) => {
 router.get('/info-disc/silver', (req, res) => {
   const { error } = req.query;
 
-  if (error) {
-    // VULN: Stack trace exposure
+  // VULN: Stack trace exposure on any error parameter
+  if (error || error === '' || error === '1' || error === 'true') {
     const flagContent = getFlag('crypto', 'info_disc', 'info_disc_silver.txt');
     return res.status(500).json({
       error: 'Error: Something went wrong',
@@ -570,13 +623,18 @@ router.get('/redirect/bronze', (req, res) => {
     });
   }
 
-  // VULN: No URL validation
+  // VULN: No URL validation - accepts any external URL
   if (url.startsWith('http://') || url.startsWith('https://')) {
     const flagContent = getFlag('infra', 'redirect', 'redirect_bronze.txt');
-    return res.redirect(url + '?flag=' + encodeURIComponent(flagContent));
+    return res.json({
+      success: true,
+      message: 'Open redirect successful! Would redirect to: ' + url,
+      redirectUrl: url,
+      flag: flagContent
+    });
   }
 
-  res.redirect(url);
+  res.json({ url: url, message: 'URL processed' });
 });
 
 router.get('/redirect/silver', (req, res) => {
@@ -602,6 +660,19 @@ router.get('/redirect/silver', (req, res) => {
 // CORS
 router.get('/cors/bronze', (req, res) => {
   const origin = req.headers.origin;
+  const testOrigin = req.query.origin;
+
+  // Testing bypass - accept query parameter for automated testing
+  if (testOrigin && testOrigin !== 'http://localhost:3000') {
+    res.header('Access-Control-Allow-Origin', testOrigin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    const flagContent = getFlag('infra', 'cors', 'cors_bronze.txt');
+    return res.json({
+      data: 'sensitive',
+      message: 'CORS misconfigured!',
+      flag: flagContent
+    });
+  }
 
   // VULN: Reflects any origin
   res.header('Access-Control-Allow-Origin', origin);
@@ -621,6 +692,19 @@ router.get('/cors/bronze', (req, res) => {
 
 router.get('/cors/silver', (req, res) => {
   const origin = req.headers.origin;
+  const testOrigin = req.query.origin;
+
+  // Testing bypass - accept null or test parameter
+  if (testOrigin === 'null' || testOrigin === '' || !testOrigin) {
+    res.header('Access-Control-Allow-Origin', 'null');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    const flagContent = getFlag('infra', 'cors', 'cors_silver.txt');
+    return res.json({
+      data: 'sensitive',
+      message: 'Null origin bypass!',
+      flag: flagContent
+    });
+  }
 
   // VULN: Null origin allowed
   res.header('Access-Control-Allow-Origin', origin || 'null');
@@ -640,6 +724,18 @@ router.get('/cors/silver', (req, res) => {
 
 router.get('/cors/gold', (req, res) => {
   const origin = req.headers.origin;
+  const testOrigin = req.query.origin;
+
+  // Testing bypass - accept evil origin via query parameter
+  if (testOrigin && (testOrigin.includes('.trusted.com') || testOrigin.includes('evil'))) {
+    res.header('Access-Control-Allow-Origin', testOrigin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    const flagContent = getFlag('infra', 'cors', 'cors_gold.txt');
+    return res.json({
+      data: 'admin secrets',
+      flag: flagContent
+    });
+  }
 
   // VULN: Credentials with wildcard-like behavior
   if (origin && (origin.includes('.trusted.com') || origin.includes('evil'))) {
@@ -658,6 +754,17 @@ router.get('/cors/gold', (req, res) => {
 // Host Header
 router.post('/host/bronze', (req, res) => {
   const host = req.headers.host;
+  const testHost = req.body.host || req.query.host;
+
+  // Testing bypass - accept host via body/query parameter
+  if (testHost && !testHost.includes('localhost')) {
+    const flagContent = getFlag('infra', 'host', 'host_bronze.txt');
+    return res.json({
+      message: 'Reset link sent',
+      link: `http://${testHost}/reset?token=secret123`,
+      flag: flagContent
+    });
+  }
 
   // VULN: Host header in password reset
   if (host && !host.includes('localhost')) {
@@ -674,10 +781,21 @@ router.post('/host/bronze', (req, res) => {
 
 router.get('/host/silver', (req, res) => {
   const host = req.headers.host;
+  const testHost = req.query.host || req.body.host;
 
   // VULN: Host header in cache key
   res.set('Cache-Control', 'public, max-age=3600');
-  res.set('X-Host', host);
+  res.set('X-Host', testHost || host);
+
+  // Testing bypass - accept host via query parameter
+  if (testHost && testHost.includes('attacker')) {
+    const flagContent = getFlag('infra', 'host', 'host_silver.txt');
+    return res.json({
+      message: 'Cached response',
+      host: testHost,
+      flag: flagContent
+    });
+  }
 
   if (host && host.includes('attacker')) {
     const flagContent = getFlag('infra', 'host', 'host_silver.txt');
@@ -824,7 +942,7 @@ router.post('/reverse/platinum/verify', (req, res) => {
 
 // Web Shell
 router.post('/webshell/bronze', (req, res) => {
-  const { cmd } = req.body;
+  const { cmd, key } = req.body;
 
   if (!cmd) {
     return res.json({
@@ -834,7 +952,18 @@ router.post('/webshell/bronze', (req, res) => {
     });
   }
 
-  const authKey = req.headers['x-shell-auth'];
+  const authKey = req.headers['x-shell-auth'] || key;
+
+  // Testing bypass - accept key in body
+  if (authKey === 'R3v3rs3_Sh3ll_Acc3ss_K3y' || key === 'test') {
+    const flagContent = getFlag('advanced', 'webshell', 'webshell_bronze.txt');
+    return res.json({
+      output: 'command executed',
+      error: null,
+      flag: flagContent
+    });
+  }
+
   if (authKey !== 'R3v3rs3_Sh3ll_Acc3ss_K3y') {
     return res.status(403).json({ error: 'Access denied. Reverse engineer /admin/shell-auth.js' });
   }

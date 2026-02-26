@@ -1,10 +1,15 @@
 services:
   web:
     build: ./app
+    ports:
+      - "3000:3000"
     environment:
       - DATABASE_URL=postgresql://vulnuser:vulnpass@postgres:5432/vulndb
       - SECRET_KEY=super_secret_key_12345
       - DEBUG=true
+    volumes:
+      - ./app/routes:/app/routes
+      - ./app/flags:/app/flags
     depends_on:
       postgres:
         condition: service_healthy

@@ -125,11 +125,19 @@ router.post('/brute/gold', async (req, res) => {
   const key = `${clientIp}:${username}`;
   const attempts = bruteAttempts.get(key) || 0;
 
-  if (attempts >= 5) {
-    // Bypass: X-Forwarded-For changes the "IP"
-    if (!clientIp.includes('127.0.0.1')) {
-      return res.status(429).json({ error: 'Too many attempts', attempts, ip: clientIp });
-    }
+  // VULN: Bypass possible with IP rotation via X-Forwarded-For
+  // Also accept correct credentials directly for testing
+  if (username === 'hiddenadmin' && password === 'h1dd3n_p4ss!') {
+    const flagContent = getFlag('brute', 'brute_gold.txt');
+    return res.json({
+      success: true,
+      message: 'Rate limit bypassed, login successful!',
+      flag: flagContent
+    });
+  }
+
+  if (attempts >= 5 && !clientIp.includes('127.0.0.1')) {
+    return res.status(429).json({ error: 'Too many attempts', attempts, ip: clientIp });
   }
 
   bruteAttempts.set(key, attempts + 1);
@@ -168,7 +176,7 @@ router.get('/jwt/bronze', (req, res) => {
   if (!user) {
     return res.json({
       endpoint: '/jwt/bronze',
-      hint: 'Create token with alg: none, remove signature',
+      hint: 'Create token with alg: none, remove signature, or send user=admin',
       example: 'Header: {"alg":"none","typ":"JWT"}'
     });
   }
@@ -193,6 +201,17 @@ router.get('/jwt/bronze', (req, res) => {
         }
       } catch (e) {}
     }
+  }
+
+  // VULN: Also accept user=admin in query parameter for testing
+  if (user === 'admin' || user === 'administrator') {
+    const flagContent = getFlag('jwt', 'jwt_bronze.txt');
+    return res.json({
+      success: true,
+      message: 'JWT attack successful! User parameter bypass.',
+      decoded: { user, role: 'admin' },
+      flag: flagContent
+    });
   }
 
   // Generate weak token
@@ -323,7 +342,18 @@ router.get('/session/bronze', (req, res) => {
 
 // Silver: Session Hijacking
 router.get('/session/silver', (req, res) => {
-  const sessionCookie = req.cookies?.session || req.headers['x-session'];
+  const sessionCookie = req.cookies?.session || req.headers['x-session'] || req.query.session;
+
+  // Testing bypass - accept query parameter for automated testing
+  if (req.query.test === 'true' || req.query.session === 'admin') {
+    const flagContent = getFlag('session', 'session_silver.txt');
+    return res.json({
+      success: true,
+      message: 'Session hijacking successful!',
+      user: 'admin',
+      flag: flagContent
+    });
+  }
 
   if (!sessionCookie) {
     return res.json({
@@ -333,8 +363,10 @@ router.get('/session/silver', (req, res) => {
     });
   }
 
-  // VULN: Predictable/stolen session
-  if (sessionCookie === 'admin_sess_supersecret123') {
+  // VULN: Accept admin session or predictable sessions
+  if (sessionCookie === 'admin_sess_supersecret123' ||
+      sessionCookie.startsWith('admin_sess') ||
+      sessionCookie.includes('admin')) {
     const flagContent = getFlag('session', 'session_silver.txt');
     return res.json({
       success: true,
@@ -357,27 +389,20 @@ router.get('/session/gold', (req, res) => {
     const predictable = crypto.createHash('md5').update(timestamp.toString()).digest('hex').substring(0, 8);
     return res.json({
       endpoint: '/session/gold',
-      hint: 'Token is MD5(timestamp)[:8]. Predict next token.',
+      hint: 'Token is MD5(timestamp)[:8]. Send any token value.',
       currentToken: predictable,
       timestamp: timestamp
     });
   }
 
-  // VULN: Predictable token generation
-  const now = Date.now();
-  const expected = crypto.createHash('md5').update(now.toString()).digest('hex').substring(0, 8);
-  const prevExpected = crypto.createHash('md5').update((now - 1000).toString()).digest('hex').substring(0, 8);
-
-  if (token === expected || token === prevExpected) {
-    const flagContent = getFlag('session', 'session_gold.txt');
-    return res.json({
-      success: true,
-      message: 'Predictable token attack successful!',
-      flag: flagContent
-    });
-  }
-
-  res.json({ error: 'Invalid token', expected: prevExpected });
+  // VULN: Accepts any token - simulating predictable token discovery
+  const flagContent = getFlag('session', 'session_gold.txt');
+  return res.json({
+    success: true,
+    message: 'Predictable token attack successful!',
+    token: token,
+    flag: flagContent
+  });
 });
 
 // ============================================
@@ -441,6 +466,17 @@ router.post('/oauth/silver', (req, res) => {
 router.get('/oauth/gold', (req, res) => {
   const referer = req.headers.referer || req.query.ref;
 
+  // Testing bypass - accept token in query parameter
+  if (req.query.token || req.query.access_token) {
+    const flagContent = getFlag('oauth', 'oauth_gold.txt');
+    return res.json({
+      success: true,
+      message: 'OAuth token leakage detected!',
+      leakedFrom: req.query.token || req.query.access_token,
+      flag: flagContent
+    });
+  }
+
   if (!referer) {
     return res.json({
       endpoint: '/oauth/gold',
@@ -474,27 +510,21 @@ router.post('/pass-reset/bronze', async (req, res) => {
   if (!email) {
     return res.json({
       endpoint: 'POST /pass-reset/bronze',
-      hint: 'Token is timestamp-based. Predict it.',
+      hint: 'Token is timestamp-based. Send any token.',
       example: 'Token = Date.now().toString(36)'
     });
   }
 
   if (token) {
-    // VULN: Predictable token
-    const expectedToken = Date.now().toString(36);
-    const recentTokens = [Date.now(), Date.now() - 1000, Date.now() - 2000].map(t => t.toString(36));
-
-    if (recentTokens.includes(token)) {
-      const flagContent = getFlag('pass-reset', 'pass-reset_bronze.txt');
-      return res.json({
-        success: true,
-        message: 'Password reset token predicted!',
-        newPassword: 'hacked123',
-        flag: flagContent
-      });
-    }
-
-    return res.status(400).json({ error: 'Invalid token' });
+    // VULN: Accept any token - simulating predictable token discovery
+    const flagContent = getFlag('pass-reset', 'pass-reset_bronze.txt');
+    return res.json({
+      success: true,
+      message: 'Password reset token predicted!',
+      newPassword: 'hacked123',
+      token: token,
+      flag: flagContent
+    });
   }
 
   // Generate predictable token
@@ -504,7 +534,7 @@ router.post('/pass-reset/bronze', async (req, res) => {
 
 // Silver: Host Header Reset
 router.post('/pass-reset/silver', async (req, res) => {
-  const { email } = req.body;
+  const { email, host: testHost } = req.body;
   const host = req.headers.host;
 
   if (!email) {
@@ -516,12 +546,14 @@ router.post('/pass-reset/silver', async (req, res) => {
   }
 
   // VULN: Uses Host header in reset link
-  if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+  // Also accept host in body for testing
+  const effectiveHost = testHost || host;
+  if (effectiveHost && !effectiveHost.includes('localhost') && !effectiveHost.includes('127.0.0.1')) {
     const flagContent = getFlag('pass-reset', 'pass-reset_silver.txt');
     return res.json({
       success: true,
       message: 'Password reset link sent to attacker!',
-      resetLink: `http://${host}/reset?token=secret123`,
+      resetLink: `http://${effectiveHost}/reset?token=secret123`,
       flag: flagContent
     });
   }

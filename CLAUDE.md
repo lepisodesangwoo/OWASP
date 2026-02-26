@@ -73,7 +73,7 @@ FULL SURVEY FLOW (required before each checkbox):
 □ State the reason: "Why this, why now?" (one sentence)
 ```
 
-### STEP 3 — Write a Plan (refactoring/<n>.md)
+### STEP 3 — Write a Plan (task/<n>.md)
 ```
 □ As-Is: file locations, dependencies, current problems
 □ To-Be: new module boundaries, file/folder layout
@@ -137,7 +137,7 @@ app/
 ├── uploads/               # File upload directory
 └── public/                # Static files
 
-refactoring/
+task/
 └── 001-route-extraction.md   # Phase 1 plan (complete)
 ```
 
